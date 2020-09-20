@@ -10,11 +10,11 @@ def scitsr_params():
                         help='task to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
-    parser.add_argument('--device', type=str, default='cuda',
+    parser.add_argument('--device', type=str, default='cpu',
                         help='device to run the code on cuda | cpu')
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/datatop_1/rudra/table_recognition/datasets/SciTSR',
+    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR',
                         help='data directory')
 
     # Data processing arguments
