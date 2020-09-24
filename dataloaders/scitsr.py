@@ -101,6 +101,9 @@ class ScitsrDataset(Dataset):
     # Checks correspondace between chunks and structs
     def check_chunks(self, structs, chunks):
         structs = self.remove_empty_cell(structs)
+        # Sanity check for labeling.
+        if len(structs) != len(chunks):
+            return 0
         for st in structs:
             id = st["id"]
             if id >= len(chunks):
@@ -140,7 +143,7 @@ class ScitsrDataset(Dataset):
                 img = cv2.dilate(img, self.kernel, iterations=1)
             if self.params.erode:
                 img = cv2.erode(img, self.kernel, iterations=1) # To thicken lines and text..
-            img = cv2.resize(img, (self.img_size, self.img_size), interpolation=cv2.INTER_AREA)
+            img = cv2.resize(img, (self.params.img_size, self.params.img_size), interpolation=cv2.INTER_AREA)
 
         with open(relfn, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
@@ -206,6 +209,7 @@ class ScitsrDataset(Dataset):
         # Sanity check for labeling.
         if len(structs) != len(chunks):
             print("Err: len(struct) = {}; len(chunks) = {}".format(len(structs), len(chunks)))
+            print(self.imglist[idx])
             exit(0)
         
         for st in structs:
