@@ -32,6 +32,7 @@
 - [ ] Attention augmented convolution
 
 #### Datasets
-* Training: SciTSR
-* Validation: SciTSR, ICDAR 2013
+* Training: SciTSR, Synthetic dataset
+* Validation: SciTSR
+    * Transfer learning on ICDAR 2013
 * Testing: ICDAR 2013, ICDAR 2019
