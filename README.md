@@ -26,6 +26,11 @@
     * Addition of position, text and image features passed via GConv prior to MLP classification head
     * Separate row and col classification
 
+#### Architecture Experiments:
+[ ] Global self-attention
+[ ] Multi-headed self-attention
+[ ] Attention augmented convolution
+
 #### Datasets
 * Training: SciTSR
 * Validation: SciTSR, ICDAR 2013
