@@ -27,9 +27,9 @@
     * Separate row and col classification
 
 #### Architecture Experiments:
-[ ] Global self-attention
-[ ] Multi-headed self-attention
-[ ] Attention augmented convolution
+- [ ] Global self-attention
+- [ ] Multi-headed self-attention
+- [ ] Attention augmented convolution
 
 #### Datasets
 * Training: SciTSR
