@@ -28,7 +28,7 @@
 
 #### Architecture Experiments:
 - [ ] Global self-attention
-- [ ] Multi-headed self-attention
+- [ ] Multi-headed self-attention : https://atcold.github.io/pytorch-Deep-Learning/en/week12/12-3/
 - [ ] Attention augmented convolution
 
 #### Datasets
