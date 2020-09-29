@@ -56,8 +56,13 @@ def img_model_params():
                         help='number of input channels of the image')
 
     # GFTE img model arguments
+    parser.add_argument('--ks', nargs='+', default=[3, 3, 3],
+                        help='kernel size for convolution')
     parser.add_argument('--nif', nargs="+", default=[64, 64, 64],
                         help='number of features for each conv operation')
+    parser.add_argument('--ss', nargs="+", default=[1, 1, 1],
+                        help='stride for convolution')
+    parser.add_argument('--sp', nargs="+", default=[2, 2, 2])
 
     opt = parser.parse_args()
 
