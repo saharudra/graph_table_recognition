@@ -138,7 +138,10 @@ class ScitsrDataset(Dataset):
             structs = json.load(f)['cells']
         img = cv2.imread(imgfn)
         if img is not None:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            # Using RGB image.
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            # TODO: Test with grayscale only
+            #  img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             if self.params.dilate:
                 img = cv2.dilate(img, self.kernel, iterations=1)
             if self.params.erode:

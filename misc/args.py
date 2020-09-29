@@ -1,7 +1,7 @@
 import argparse
 
 def scitsr_params():
-    parser = argparse.ArgumentParser(description="arguments for training SciTSR table recognition task")
+    parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
 
     # Base arguments
     parser.add_argument('--run', type=str, default='version_1_a',
@@ -32,6 +32,32 @@ def scitsr_params():
                         help='whether to erode images or not, to thicken lines and text')
     parser.add_argument('--augment_chunk', type=bool, default=False, 
                         help='whether to jitter position of cell text bounding box')
+
+    opt = parser.parse_args()
+
+    return opt
+
+
+def img_model_params():
+    parser = argparse.ArgumentParser(description="Arguments for image processing modules")
+
+    # Base arguments
+    parser.add_argument('--run', type=str, default='version_1_a',
+                        help='model version to be run')
+    parser.add_argument('--exp', type=str, default='table_recognition',
+                        help='task to be run')
+    parser.add_argument('--seed', type=int, default=1234, 
+                        help='seed value for reproducibility')
+    parser.add_argument('--device', type=str, default='cpu',
+                        help='device to run the code on cuda | cpu')
+    
+    # Base img model arguments
+    parser.add_argument('--inc', type=int, default=3,
+                        help='number of input channels of the image')
+
+    # GFTE img model arguments
+    parser.add_argument('--nif', nargs="+", default=[64, 64, 64],
+                        help='number of features for each conv operation')
 
     opt = parser.parse_args()
 
