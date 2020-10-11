@@ -1,4 +1,5 @@
 import torch
+from torch.distributions.multivariate_normal import MultivariateNormal
 import torch.nn.functional as F 
 from torch_geometric.data import DataLoader
 
@@ -79,15 +80,29 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
         sout=sout.squeeze(0)
         sout=sout.squeeze(1)
         sout = sout.permute(1, 0) # (num_box * num_samples) x feature_num
-        idx = np.repeat(np.arange(1, nodenum[i].item() + 1), num_samples)
-        sout = sout.detach().numpy()
-        sout = np.insert(sout, 0, idx, axis=1)
-        sout = npi.group_by(sout[:, 0]).split(sout[:, 1:]).reshape(nodenum[i].item(), -1)
-        sout = torch.FloatTensor(sout)
+        # idx = torch.FloatTensor(np.repeat(np.arange(1, nodenum[i].item() + 1), num_samples)).view(nodenum[i].item() * num_samples, -1)
+        # sout = torch.cat([idx, sout], axis=1)
+        size = sout.size()
+        sampling_out = torch.empty((0, size[-1]))
+        sample_lst = []
+        for it, curr_out in enumerate(sout):
+            curr_out = curr_out.reshape(1, size[-1])
+            if it == 0:
+                sampling_out = torch.cat([sampling_out, curr_out], axis=0)
+            elif it % num_samples != 0:
+                sampling_out = torch.cat([sampling_out, curr_out], axis=1)
+            else:
+                sample_lst.append(sampling_out)
+                sampling_out = torch.empty((0, size[-1]))
+                sampling_out = torch.cat([sampling_out, curr_out], axis=0)
+        sample_lst.append(sampling_out)
+        sample_out = torch.cat(sample_lst, axis=0)
+        # sout = npi.group_by(sout[:, 0]).split(sout[:, 1:]).reshape(nodenum[i].item(), -1)
+        # sout = torch.FloatTensor(sout)
         if i==0:
-            out = sout
+            out = sample_out
         else:
-            out = torch.cat((out,sout),0)
+            out = torch.cat((out,sample_out),0)
     return out
 
 img_params = img_model_params()
@@ -98,5 +113,5 @@ for idx, data in enumerate(train_loader):
     img, imgpos, nodenum, cell_wh = data.img, data.imgpos, data.nodenum, data.cell_wh
     print(img.shape)
     img_features = img_model(img)
-    box_features = sample_box_features(img_features, nodenum, imgpos, cell_wh, img, num_samples=10, div=32.0)
+    box_features = sample_box_features(img_features, nodenum, imgpos, cell_wh, img, num_samples=5, div=32.0)
     import pdb; pdb.set_trace()

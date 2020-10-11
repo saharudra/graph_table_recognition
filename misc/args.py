@@ -30,6 +30,8 @@ def scitsr_params():
                         help='whether to dilate images or not')
     parser.add_argument('--erode', type=bool, default=False,
                         help='whether to erode images or not, to thicken lines and text')
+    parser.add_argument('--labeling_sanity', type=bool, default=True,
+                        help='sanity checking labeling when cell text is split.')
     parser.add_argument('--augment_chunk', type=bool, default=False, 
                         help='whether to jitter position of cell text bounding box')
 

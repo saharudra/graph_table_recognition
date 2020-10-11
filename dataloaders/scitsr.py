@@ -103,7 +103,7 @@ class ScitsrDataset(Dataset):
     def check_chunks(self, structs, chunks):
         structs = self.remove_empty_cell(structs)
         # Sanity check for labeling.
-        if len(structs) != len(chunks):
+        if len(structs) != len(chunks) and self.params.labeling_sanity:
             return 0
         for st in structs:
             id = st["id"]
@@ -295,7 +295,9 @@ if __name__ == '__main__':
     params.optimal_k_chk = True
     print(params)
     train_dataset = ScitsrDataset(params)
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
+    test_dataset = ScitsrDataset(params, partition='test')
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
     for idx, data in enumerate(train_loader):
         print(data)
