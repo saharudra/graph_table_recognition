@@ -31,6 +31,9 @@
 - [ ] Multi-headed self-attention : https://atcold.github.io/pytorch-Deep-Learning/en/week12/12-3/
 - [ ] Attention augmented convolution
 
+##### To-Dos:
+- [ ] Create network architecture for versions
+
 #### Datasets
 * Training: SciTSR, Synthetic dataset
 * Validation: SciTSR

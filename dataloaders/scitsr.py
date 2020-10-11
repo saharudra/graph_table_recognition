@@ -23,6 +23,7 @@ def encode_text(ins, vob, max_len = 10, default = " "):
     sl = len(ins)
     minl = min(sl, max_len)
     for i in range(minl):
+        # GFTE replaces uppercase letters with blank space character
         char = ins[i].lower()  # converting to lowercase
         if char in vob:
             out.append(vob[char])
@@ -205,7 +206,7 @@ class ScitsrDataset(Dataset):
 
         cl = self.cal_chk_limits(chunks)
         
-        x, pos, tbpos, xtext, imgpos = [], [], [], [], []
+        x, pos, tbpos, xtext, imgpos, cell_wh = [], [], [], [], [], []
         plaintext = []
         structs = self.remove_empty_cell(structs)
         
@@ -224,7 +225,8 @@ class ScitsrDataset(Dataset):
             tbpos.append([st["start_row"], st["end_row"], st["start_col"], st["end_col"]])  # position information in the table to calculate label
             xtext.append(encode_text(chk["text"], vob, self.params.text_encode_len))
             plaintext.append(chk["text"].encode('utf-8'))
-            imgpos.append([(1.0 - xt[5]) * 2 - 1.0, xt[4] * 2 - 1.0])  
+            imgpos.append([(1.0 - xt[5]) * 2 - 1.0, xt[4] * 2 - 1.0])
+            cell_wh.append([xt[-2], xt[-1]])
 
         x = torch.FloatTensor(x)
         pos = torch.FloatTensor(pos)
@@ -233,7 +235,8 @@ class ScitsrDataset(Dataset):
 
         y_row = self.cal_row_label(data, tbpos)
         y_col = self.cal_col_label(data, tbpos)
-        img = torch.FloatTensor(img / 255.0).unsqueeze(0).unsqueeze(0)
+        # img in RGB format, not unsqueezing twice
+        img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
         rels = torch.LongTensor(rels)
 
         data.y_row = torch.LongTensor(y_row)
@@ -241,6 +244,7 @@ class ScitsrDataset(Dataset):
         data.img = img
         data.rels = rels
         data.imgpos = torch.FloatTensor(imgpos)
+        data.cell_wh = torch.FloatTensor(cell_wh)
         data.nodenum = torch.LongTensor([len(structs)])
         data.xtext = torch.LongTensor(xtext)
 

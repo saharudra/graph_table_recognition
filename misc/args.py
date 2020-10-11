@@ -62,7 +62,10 @@ def img_model_params():
                         help='number of features for each conv operation')
     parser.add_argument('--ss', nargs="+", default=[1, 1, 1],
                         help='stride for convolution')
-    parser.add_argument('--sp', nargs="+", default=[2, 2, 2])
+    parser.add_argument('--ps', nargs="+", default=[1, 1, 1, 1],
+                        help='padding for convolution')
+    parser.add_argument('--sp', nargs="+", default=[2, 2, 2],
+                        help='stride for pooling')
 
     opt = parser.parse_args()
 
