@@ -19,15 +19,28 @@ train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
 
 def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=16.0):
     """
+    TODO: Make the feature efficient. Start by removing internal loops.
     cnnout:  batch_size x cnn_out_features x cnn_out_h x cnn_out_w
              Output features from image processing stem prior to sending to GCNN or MLP.
+
     nodenum: batch_size 
              List of length batch_size with each element giving the number of nodes (cell texts)
              in each input graph.
+
     pos:     num_edges x 2
              Position feature for each of the node forming an edge.
              These are original position features of the centroid of the cell text transformed
              according to F.grid_sample.
+
+    cell_wh: num_edges x 2
+             Height and width information for each of the node i.e cell text.
+             Using the min of this to create the isotropic gaussian to sample from each node.
+
+    img:     batch_size x 3 x img_h x img_w x
+
+    num_samples: Number of samples to take from each node.
+
+    div:      Division for covariance matrix, defines kurtosis.
 
     out:     num_edges x sampled_img_features
              If sampling only from the centroid of the cell text, sampled_img_features == 64.
@@ -111,7 +124,6 @@ img_model = ConvBaseGFTE(img_params)
 
 for idx, data in enumerate(train_loader):
     img, imgpos, nodenum, cell_wh = data.img, data.imgpos, data.nodenum, data.cell_wh
-    print(img.shape)
     img_features = img_model(img)
     box_features = sample_box_features(img_features, nodenum, imgpos, cell_wh, img, num_samples=5, div=32.0)
     import pdb; pdb.set_trace()
