@@ -88,7 +88,7 @@ class TbNetV1(nn.Module):
 
         # Transform image features
         image_global_features = self.img_model(img)
-        image_features = self.sample_box_features(image_global_features, nodenum, 
+        image_features = sample_box_features(image_global_features, nodenum, 
                                                   pos, cell_wh, img, 
                                                   self.base_params.num_samples, self.base_params.div)
 
