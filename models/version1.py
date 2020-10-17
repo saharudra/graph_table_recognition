@@ -41,32 +41,91 @@ class TbNetV1(nn.Module):
         self.img_model = ConvBaseGFTE(self.img_model_params)
 
         # position transformation layer
-        self.position_layer = self.position_transformation_layer
+        self.position_transformation_layer()
         
         # text transformation layer
         self.embeds = nn.Embedding(self.base_params.vocab_size, self.base_params.num_text_features)
-        self.rnn = nn.GRU(self.base_params.num_text_features, self.base_params.num_hidden_features, \
+        self.gru = nn.GRU(self.base_params.num_text_features, self.base_params.num_hidden_features, \
                           bidirectional=self.base_params.bidirectional, batch_first=True)
 
         # edge feature generation layers
-        self.lin1 = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
+        self.lin_pos = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
         self.lin_img = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
         self.lin_text = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
-        self.lin_final = nn.Linear(self.base_params.num_hidden * 3, self.base_params.num_classes)
+
+        # row/col classification heads
+        self.lin_row = nn.Sequential(
+            nn.Linear(self.base_params.num_hidden * 3, self.base_params.num_hidden_features),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
+        )
+
+        self.lin_col = nn.Sequential(
+            nn.Linear(self.base_params.num_hidden * 3, self.base_params.num_classes),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
+        )
 
     def position_transformation_layer(self):
-        out = nn.Sequential(
+        self.position_features = nn.Sequential(
             GCNConv(self.base_params.num_node_features, self.base_params.num_hidden_features),
             nn.ReLU(inplace=True),
             GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features),
             nn.ReLU(inplace=True)
         )
-        return out
+        return self.position_features()
 
     def forward(self, data):
         x, edge_index, xtext, img, nodenum, pos, cell_wh = data.x, data.edge_index, data.xtext, data.img, data.nodenum, data.pos, data.cell_wh
 
-        
+        # Transform position features
+        position_features = self.position_features(x)
+
+        # Transform text features 
+        xtext = self.embeds(xtext)
+        text_features, _ = self.gru(xtet)
+        text_features = text_features[:, -1, :]
+
+        # Transform image features
+        image_global_features = self.img_model(img)
+        image_features = self.sample_box_features(image_global_features, nodenum, 
+                                                  pos, cell_wh, img, 
+                                                  self.base_params.num_samples, self.base_params.div)
+
+        # Edge feature generation
+        n1_position_features = position_features[edge_index[0]]
+        n2_position_features = position_features[edge_index[1]]
+        edge_pos_features = torch.cat((n1_position_features, n2_position_features), dim=1)
+        edge_pos_features = F.relu(self.lin_pos(edge_pos_features))
+
+
+        n1_text_features = text_features[edge_index[0]]
+        n2_text_features = text_features[edge_index[1]]
+        edge_text_features = torch.cat((n1_text_features, n2_text_features), dim=1)
+        edge_text_features = F.relu(self.lin_text(edge_text_features))
+
+        n1_image_features = image_features[edge_index[0]]
+        n2_image_features = image_features[edge_index[1]]
+        edge_image_features = torch.cat((n1_image_features, n2_image_features), dim=1)
+        edge_image_features = F.relu(self.lin_img(edge_image_features))
+
+        # Separate heads for row and col classification
+        edge_row_features = torch.cat((edge_pos_features, edge_text_features, edge_image_features), dim=1)
+        edge_row_features = self.lin_row(edge_row_features)
+        row_pred = F.log_softmax(edge_row_features, dim=1)
+
+        edge_col_features = torch.cat((edge_pos_features, edge_text_features, edge_image_features), dim=1)
+        edge_col_features = self.lin_col(edge_col_features)
+        col_pred = F.log_softmax(edge_col_features, dim=1)
+
+        return row_pred, col_pred
+
+
+
+
+
+
+
 
 
 
