@@ -4,6 +4,7 @@ from torch_geometric.nn import GCNConv
 import torch.nn as nn
 
 from .img_models import ConvBaseGFTE
+from ops.sample_image_features import sample_box_features
 
 
 class TbNetV1(nn.Module):
@@ -52,7 +53,6 @@ class TbNetV1(nn.Module):
         self.lin_img = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
         self.lin_text = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
         self.lin_final = nn.Linear(self.base_params.num_hidden * 3, self.base_params.num_classes)
-        
 
     def position_transformation_layer(self):
         out = nn.Sequential(
@@ -62,6 +62,13 @@ class TbNetV1(nn.Module):
             nn.ReLU(inplace=True)
         )
         return out
+
+    def forward(self, data):
+        x, edge_index, xtext, img, nodenum, pos, cell_wh = data.x, data.edge_index, data.xtext, data.img, data.nodenum, data.pos, data.cell_wh
+
+        
+
+
 
 
         
