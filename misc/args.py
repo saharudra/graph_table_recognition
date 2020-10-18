@@ -118,12 +118,29 @@ def train_params():
     # Training arguments
     parser.add_argument('--num_epochs', type=int, default=100, 
                         help='number of epochs to train for')
+
+    parser.add_argument('--lr', type=float, default=1e-3,
+                        help='initial learning rate for training')
+    parser.add_argument('--schedule_lr', type=bool, default=False,
+                        help='whether to perform learning rate scheduling')
+    parser.add_argument('--lr_patience', type=int, default=5,
+                        help='number of epochs of no improvement after which lr will be reduced')
+    parser.add_argument('--lr_reduce_factor', type=float, default=0.5,
+                        help='factor by which to reduce the learning rate')
+    parser.add_argument('--lr_schedule_mode', type=str, default='min',
+                        help='monitoring val loss, if monitoring val accuracy convert to max')
+    parser.add_argument('--lr_cooldonw', type=int, default=2,
+                        help='number of epochs to wait before resuming normal operations after lr reduction')
+    parser.add_argument('--min_lr', type=float, default=1e-5,
+                        help='minimum lr for learning rate scheduling')
+
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='optimizer to use: adam | adadelta | rmsprop')
-    parser.add_argument('--lr', type=float, default=0.001,
-                        help='initial learning rate for training')
     parser.add_argument('--beta1', type=float, default=0.5,
                         help='beta1 for adam optimizer')
+    parser.add_argument('--beta2', type=float, default=0.999,
+                        help='beta2 for adam optimizer')
+
     parser.add_argument('--logging_interval', type=int, default=20,
                         help='interval at which to log information')
     parser.add_argument('--val_iterval', type=int, default=10,
