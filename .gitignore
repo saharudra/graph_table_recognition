@@ -8,6 +8,7 @@ __pycache__/
 
 # Directories
 table_structure_recognition/
+wandb/
 
 # Distribution / packaging
 .Python
