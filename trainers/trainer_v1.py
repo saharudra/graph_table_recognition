@@ -124,10 +124,6 @@ def train(model, optimizer, train_loader, epoch):
         epoch_row_loss += row_loss.item()
         epoch_col_loss += col_loss.item()
 
-    # Sanity check
-    import pdb; pdb.set_trace()
-    print(len(train_loader.dataset))
-
     epoch_loss /= len(train_loader.dataset)
     epoch_row_loss /= len(train_loader.dataset)
     epoch_col_loss /= len(train_loader.dataset)
