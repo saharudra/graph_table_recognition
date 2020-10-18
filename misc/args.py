@@ -100,7 +100,7 @@ def train_params():
     parser = argparse.ArgumentParser(description="Arguments for trainer scripts")
 
     # Base arguments
-    parser.add_argument('--exp', type=str, default='table_recognition',
+    parser.add_argument('--exp', type=str, default='table_structure_recognition',
                         help='task to be run, defines save directory root.')
     parser.add_argument('--run', type=str, default='version_1_a',
                         help='model version to be run')

@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Directories
+table_structure_recognition/
+
 # Distribution / packaging
 .Python
 build/
