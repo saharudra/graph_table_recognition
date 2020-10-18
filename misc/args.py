@@ -2,28 +2,22 @@ import argparse
 
 def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
-
-    # Base arguments
-    parser.add_argument('--run', type=str, default='version_1_a',
-                        help='model version to be run')
-    parser.add_argument('--exp', type=str, default='table_recognition',
-                        help='task to be run')
-    parser.add_argument('--seed', type=int, default=1234, 
-                        help='seed value for reproducibility')
-    parser.add_argument('--device', type=str, default='cpu',
-                        help='device to run the code on cuda | cpu')
     
     # Data arguments
     parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR',
                         help='data directory')
 
     # Data processing arguments
+    parser.add_argument('--alphabet', type=str, default="0123456789abcdefghijklmnopqrstuvwxyz,.*# ",
+                        help='characters that are being encoded')
     parser.add_argument('--text_encode_len', type=int, default=15,
                         help='max length for encoding text')
     parser.add_argument('--img_size', type=int, default=256,
                         help='size of the image taken in by the model')
     parser.add_argument('--kernel_size', type=int, default=3,
                         help='size of the kernel for dilation or erosion')
+    parser.add_argument('--device', type=str, default='cpu',
+                        help='device to run graph transform on, currently cpu')
     parser.add_argument('--graph_k', type=int, default=6,
                         help='K-value for KNN graph transform')
     parser.add_argument('--dilate', type=bool, default=False,
@@ -72,4 +66,78 @@ def img_model_params():
     opt = parser.parse_args()
 
     return opt
+
+
+def base_parasm():
+    parser = argparse.ArgumentParser(description="Arguments for table structure recognition base")
+
+    # Global params
+    parser.add_argument('--num_classes', type=int, default=2,
+                        help='both row and col classification as binary classification')
+
+    # Text feature params
+    parser.add_argument('--vocab_size', type=int, default=41,
+                        help='vocabulary size based on number of characters being compared')
+    parser.add_argument('--num_text_features', type=int, default=64,
+                        help='number of text features for input')
+    parser.add_argument('--num_hidden_features', type=int, default=64, 
+                        help='number of hidden features for the entire processing')
+    parser.add_argument('--biderectional', type=bool, default=False,
+                        help='whether to consider a bidirectional rnn')
+
+    # Image feature params
+    parser.add_argument('--num_samples', type=int, default=10,
+                        help='number of points to sample image features from for each cell text')
+    parser.add_argument('--div', type=float, default=16.0,
+                        help='defining kurtosis of each of the isotropic gaussian distribution')
+    
+    opt = parser.parse_args()
+
+    return opt
+
+
+def trainer_params():
+    parser = argparse.ArgumentParser(description="Arguments for trainer scripts")
+
+    # Base arguments
+    parser.add_argument('--run', type=str, default='version_1_a',
+                        help='model version to be run')
+    parser.add_argument('--exp', type=str, default='table_recognition',
+                        help='task to be run')
+    parser.add_argument('--seed', type=int, default=1234, 
+                        help='seed value for reproducibility')
+    parser.add_argument('--device', type=str, default='cuda',
+                        help='device to run the code on cuda | cpu')
+
+    # Dataloader arguments
+    parser.add_argument('--workers', type=int, default=0,
+                        help='number of dataloading workers, not an option in torch_geometric')
+    parser.add_argument('--batch_size', type=int, default=32,
+                        help='input batch size')
+
+    # Training arguments
+    parser.add_argument('--num_epochs', type=int, default=100, 
+                        help='number of epochs to train for')
+    parser.add_argument('--optimizer', type=str, default='adam',
+                        help='optimizer to use: adam | adadelta | rmsprop')
+    parser.add_argument('--lr', type=float, default=0.001,
+                        help='initial learning rate for training')
+    parser.add_argument('--beta1', type=float, default=0.5,
+                        help='beta1 for adam optimizer')
+    parser.add_argument('--logging_interval', type=int, default=20,
+                        help='interval at which to log information')
+    parser.add_argument('--val_iterval', type=int, default=10,
+                        help='interval at which validation will be performed and logged')
+    parser.add_argument('--save_interval', type=int, default=1,
+                        help='interval at which model check will be done to save best')
+
+    opt = parser.parse_args()
+
+    return opt
+    
+    
+
+    
+    
+
     

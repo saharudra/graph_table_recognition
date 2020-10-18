@@ -15,10 +15,7 @@ import csv
 
 from misc.args import scitsr_params
 
-alphabet = "0123456789abcdefghijklmnopqrstuvwxyz,.*# "
-vob = {x:ind for ind, x in enumerate(alphabet)}
-
-def encode_text(ins, vob, max_len = 10, default = " "):
+def encode_text(ins, vob, max_len, default = " "):
     out = []
     sl = len(ins)
     minl = min(sl, max_len)
@@ -58,6 +55,8 @@ class ScitsrDataset(Dataset):
         self.kernel = np.ones((self.params.kernel_size, self.params.kernel_size), np.uint8)
 
         self.graph_transform = GT.KNNGraph(k=self.params.graph_k)
+
+        self.vob = {x:ind for ind, x in enumerate(self.params.alphabet)}
     
     @property
     def raw_file_names(self):
@@ -223,7 +222,7 @@ class ScitsrDataset(Dataset):
             x.append(xt)
             pos.append(xt[4:6])  # pos only takes the centroid of each cell text bounding box
             tbpos.append([st["start_row"], st["end_row"], st["start_col"], st["end_col"]])  # position information in the table to calculate label
-            xtext.append(encode_text(chk["text"], vob, self.params.text_encode_len))
+            xtext.append(encode_text(chk["text"], self.vob, self.params.text_encode_len))
             plaintext.append(chk["text"].encode('utf-8'))
             imgpos.append([(1.0 - xt[5]) * 2 - 1.0, xt[4] * 2 - 1.0])
             cell_wh.append([xt[-2], xt[-1]])
