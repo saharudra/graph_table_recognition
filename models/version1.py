@@ -43,7 +43,8 @@ class TbNetV1(nn.Module):
         self.img_model = ConvBaseGFTE(self.img_model_params)
 
         # position transformation layer
-        self.position_transformation_layer()
+        self.conv1 = GCNConv(self.base_params.num_node_features, self.base_params.num_hidden_features)
+        self.conv2 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
         
         # text transformation layer
         self.embeds = nn.Embedding(self.base_params.vocab_size, self.base_params.num_text_features)
@@ -51,41 +52,35 @@ class TbNetV1(nn.Module):
                           bidirectional=self.base_params.bidirectional, batch_first=True)
 
         # edge feature generation layers
-        self.lin_pos = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
-        self.lin_img = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
-        self.lin_text = nn.Linear(self.base_params.num_hidden_features * 2, num_hidden_features)
+        self.lin_pos = nn.Linear(self.base_params.num_hidden_features * 2, self.base_params.num_hidden_features)
+        self.lin_img = nn.Linear(self.base_params.num_hidden_features * 2 * self.base_params.num_samples, self.base_params.num_hidden_features)
+        self.lin_text = nn.Linear(self.base_params.num_hidden_features * 2, self.base_params.num_hidden_features)
 
         # row/col classification heads
         self.lin_row = nn.Sequential(
-            nn.Linear(self.base_params.num_hidden * 3, self.base_params.num_hidden_features),
+            nn.Linear(self.base_params.num_hidden_features * 3, self.base_params.num_hidden_features),
             nn.ReLU(inplace=True),
             nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
         )
 
         self.lin_col = nn.Sequential(
-            nn.Linear(self.base_params.num_hidden * 3, self.base_params.num_classes),
+            nn.Linear(self.base_params.num_hidden_features * 3, self.base_params.num_hidden_features),
             nn.ReLU(inplace=True),
             nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
         )
-
-    def position_transformation_layer(self):
-        self.position_features = nn.Sequential(
-            GCNConv(self.base_params.num_node_features, self.base_params.num_hidden_features),
-            nn.ReLU(inplace=True),
-            GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features),
-            nn.ReLU(inplace=True)
-        )
-        return self.position_features()
 
     def forward(self, data):
         x, edge_index, xtext, img, nodenum, pos, cell_wh = data.x, data.edge_index, data.xtext, data.img, data.nodenum, data.pos, data.cell_wh
 
         # Transform position features
-        position_features = self.position_features(x)
+        position_features = self.conv1(x, edge_index)
+        position_features = F.relu(position_features)
+        position_features = self.conv2(position_features, edge_index)
+        position_features = F.relu(position_features)
 
         # Transform text features 
         xtext = self.embeds(xtext)
-        text_features, _ = self.gru(xtet)
+        text_features, _ = self.gru(xtext)
         text_features = text_features[:, -1, :]
 
         # Transform image features

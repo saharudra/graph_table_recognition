@@ -68,25 +68,29 @@ def img_model_params():
     return opt
 
 
-def base_parasm():
+def base_params():
     parser = argparse.ArgumentParser(description="Arguments for table structure recognition base")
 
     # Global params
     parser.add_argument('--num_classes', type=int, default=2,
                         help='both row and col classification as binary classification')
 
+    # Position feature params 
+    parser.add_argument('--num_hidden_features', type=int, default=64, 
+                        help='number of hidden features for the entire processing')
+    parser.add_argument('--num_node_features', type=int, default=8,
+                        help='number of input features of a node')
+
     # Text feature params
     parser.add_argument('--vocab_size', type=int, default=41,
                         help='vocabulary size based on number of characters being compared')
     parser.add_argument('--num_text_features', type=int, default=64,
                         help='number of text features for input')
-    parser.add_argument('--num_hidden_features', type=int, default=64, 
-                        help='number of hidden features for the entire processing')
-    parser.add_argument('--biderectional', type=bool, default=False,
+    parser.add_argument('--bidirectional', type=bool, default=False,
                         help='whether to consider a bidirectional rnn')
 
     # Image feature params
-    parser.add_argument('--num_samples', type=int, default=10,
+    parser.add_argument('--num_samples', type=int, default=1,
                         help='number of points to sample image features from for each cell text')
     parser.add_argument('--div', type=float, default=16.0,
                         help='defining kurtosis of each of the isotropic gaussian distribution')

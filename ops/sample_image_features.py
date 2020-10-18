@@ -63,14 +63,12 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
         sampling_grid = torch.FloatTensor(sampling_grid)
         sampling_grid = sampling_grid.unsqueeze(0) 
         sampling_grid = sampling_grid.unsqueeze(0)
-
+        
         if num_samples == 1:
             imgpos = torch.FloatTensor(imgpos)
             imgpos = imgpos.unsqueeze(0)
             imgpos = imgpos.unsqueeze(0)
             sampling_grid = imgpos
-        else:
-            continue
 
         cnnin = cnnout[i].unsqueeze(0)  # Single graph
         sout = F.grid_sample(cnnin, sampling_grid, mode='bilinear', padding_mode='border')
@@ -101,4 +99,5 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
             out = sample_out
         else:
             out = torch.cat((out,sample_out),0)
+        
     return out

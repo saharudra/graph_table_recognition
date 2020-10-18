@@ -1,9 +1,11 @@
 from __future__ import print_function
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data 
-from torch_geometric.datasets import Dataset, DataLoader
+from torch_geometric.data import Dataset, DataLoader
 from torch_scatter import scatter_mean
 import torch_geometric.transforms as GT
 
@@ -11,10 +13,11 @@ import numpy as np
 import os
 import math
 import json
+import random
 import wandb
 
 from models.version1 import TbNetV1
-from dataloaders.scatter import ScitsrDataset
+from dataloaders.scitsr import ScitsrDataset
 from misc.args import train_params, scitsr_params, img_model_params, base_params
 from ops.misc import weights_init, mkdir_p
 
@@ -23,7 +26,7 @@ def main(config):
     # Separate params
     dataset_params = config['dataset_params']
     img_model_params = config['img_params']
-    base_params = config['base_params']
+    base_params = config['model_base_params']
     trainer_params = config['trainer_params']
 
     # Define dataloader
@@ -36,7 +39,8 @@ def main(config):
     # Define model
     model = TbNetV1(base_params, img_model_params)
     model.to(DEVICE)
-    model.apply(weights_init)
+    # TODO: Weight initialization
+    # model.apply(weights_init)
 
     # Define optimizer and learning rate scheduler
     if trainer_params.optimizer == 'adam':
@@ -204,7 +208,7 @@ if __name__ == "__main__":
     random.seed(trainer_params.seed)
 
     # Create save locations
-    root_path = os.getcwd() + os.sep + os.exp + os.sep + os.run
+    root_path = os.getcwd() + os.sep + trainer_params.exp + os.sep + trainer_params.run
     mkdir_p(root_path)
     log_path = root_path + os.sep + '/checkpoints'
     mkdir_p(log_path)
@@ -233,14 +237,12 @@ if __name__ == "__main__":
     # Initialize wandb config
     wandb.init(entity='rsaha', project='table_structure_recognition', config=config_dict)
 
-    main(config=config_dict)
+    namespace_config_dict = {'img_params': img_params,
+                             'dataset_params': dataset_params,
+                             'trainer_params': trainer_params,
+                             'model_base_params': model_base_params
+                            }
 
+    main(config=namespace_config_dict)
 
-
-
-
-
-
-
-
-
+    
