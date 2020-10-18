@@ -9,6 +9,8 @@ from ops.sample_image_features import sample_box_features
 
 class TbNetV1(nn.Module):
     """
+    VERSION 1.a)
+    
     Position features are transformed via multiple layers of  
     graph convolutional operator from the “Semi-supervised 
     Classification with Graph Convolutional Networks” paper

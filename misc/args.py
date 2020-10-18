@@ -96,14 +96,14 @@ def base_parasm():
     return opt
 
 
-def trainer_params():
+def train_params():
     parser = argparse.ArgumentParser(description="Arguments for trainer scripts")
 
     # Base arguments
+    parser.add_argument('--exp', type=str, default='table_recognition',
+                        help='task to be run, defines save directory root.')
     parser.add_argument('--run', type=str, default='version_1_a',
                         help='model version to be run')
-    parser.add_argument('--exp', type=str, default='table_recognition',
-                        help='task to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
     parser.add_argument('--device', type=str, default='cuda',
