@@ -77,7 +77,8 @@ class ScitsrDataset(Dataset):
         validlist = []
         for idx in range(len(self.imglist)):
             print('*** file:', self.imglist[idx])
-            structs, chunks, img, rels = self.readlabel(idx)
+            # structs, chunks, img, rels = self.readlabel(idx)
+            structs, chunks, img = self.readlabel(idx)
             vi = self.check_chunks(structs, chunks)
             if vi == 1 and (img is not None):
                 validlist.append(self.imglist[idx])
@@ -123,7 +124,7 @@ class ScitsrDataset(Dataset):
        
         structfn = os.path.join(self.root_path, "structure", os.path.splitext(os.path.basename(imgfn))[0] + ".json")
         chunkfn = os.path.join(self.root_path, "chunk", os.path.splitext(os.path.basename(imgfn))[0] + ".chunk")
-        relfn = os.path.join(self.root_path, "rel", os.path.splitext(os.path.basename(imgfn))[0] + ".rel")
+        # relfn = os.path.join(self.root_path, "rel", os.path.splitext(os.path.basename(imgfn))[0] + ".rel")
         imgfn = os.path.join(self.root_path, "img", os.path.splitext(os.path.basename(imgfn))[0] + ".png")
        
         if not os.path.exists(structfn) or not os.path.exists(chunkfn) or not os.path.exists(imgfn):
@@ -148,16 +149,17 @@ class ScitsrDataset(Dataset):
                 img = cv2.erode(img, self.kernel, iterations=1) # To thicken lines and text..
             img = cv2.resize(img, (self.params.img_size, self.params.img_size), interpolation=cv2.INTER_AREA)
 
-        with open(relfn, 'r') as f:
-            reader = csv.reader(f, delimiter='\t')
-            rels = list(reader)
+        # with open(relfn, 'r') as f:
+        #     reader = csv.reader(f, delimiter='\t')
+        #     rels = list(reader)
         
-        for idx, rel in enumerate(rels):
-            rel[-1] = rel[-1][0]
-            rel = [int(x) for x in rel]
-            rels[idx] = rel
+        # for idx, rel in enumerate(rels):
+        #     rel[-1] = rel[-1][0]
+        #     rel = [int(x) for x in rel]
+        #     rels[idx] = rel
 
-        return structs, chunks, img, rels
+        # return structs, chunks, img, rels
+        return structs, chunks, img
     
     def __len__(self):
         return len(self.imglist)
@@ -197,8 +199,9 @@ class ScitsrDataset(Dataset):
             chk["pos"][3] += random.normalvariate(0, 1)
 
     def get(self, idx):
-        
-        structs, chunks, img, rels = self.readlabel(idx)
+        # rels are only being used for optimal k check and not available in test set of SciTSR
+        # structs, chunks, img, rels = self.readlabel(idx)
+        structs, chunks, img = self.readlabel(idx)
         
         if self.params.augment_chunk:
             self.augmentation_chk(chunks)
@@ -236,12 +239,12 @@ class ScitsrDataset(Dataset):
         y_col = self.cal_col_label(data, tbpos)
         # img in RGB format, not unsqueezing twice
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
-        rels = torch.LongTensor(rels)
+        # rels = torch.LongTensor(rels)
 
         data.y_row = torch.LongTensor(y_row)
         data.y_col = torch.LongTensor(y_col)
         data.img = img
-        data.rels = rels
+        # data.rels = rels
         data.imgpos = torch.FloatTensor(imgpos)
         data.cell_wh = torch.FloatTensor(cell_wh)
         data.nodenum = torch.LongTensor([len(structs)])

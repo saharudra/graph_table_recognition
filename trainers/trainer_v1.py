@@ -65,6 +65,7 @@ def main(config):
     best_epoch = -1
 
     # Outer train loop
+    print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
         train_loss, train_row_loss, train_col_loss = train(model, optimizer, train_loader, epoch)
         val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc = eval(model, val_loader, epoch)

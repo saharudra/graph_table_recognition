@@ -47,8 +47,8 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
         # Create sampling grid using gaussian sampling around cell text center 
         # Use cell text height and width to define the covariance matrix for sampling
         sampling_grid = np.empty((0, 2))
-        imgpos = imgpos.numpy()
-        cellpos = cellpos.numpy()
+        imgpos = imgpos.cpu().numpy()
+        cellpos = cellpos.cpu().numpy()
         for idx, cen_pos in enumerate(imgpos):
             min_cellpos = min(cellpos[idx])
             # Sample from an isotropic gaussian with mean as cell text centroid 
@@ -70,6 +70,7 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
             imgpos = imgpos.unsqueeze(0)
             sampling_grid = imgpos
 
+        sampling_grid = sampling_grid.to(torch.device("cuda"))
         cnnin = cnnout[i].unsqueeze(0)  # Single graph
         sout = F.grid_sample(cnnin, sampling_grid, mode='bilinear', padding_mode='border')
         cnt+=nodenum[i]
@@ -79,7 +80,7 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
         # idx = torch.FloatTensor(np.repeat(np.arange(1, nodenum[i].item() + 1), num_samples)).view(nodenum[i].item() * num_samples, -1)
         # sout = torch.cat([idx, sout], axis=1)
         size = sout.size()
-        sampling_out = torch.empty((0, size[-1]))
+        sampling_out = torch.empty((0, size[-1])).to(torch.device("cuda"))
         sample_lst = []
         for it, curr_out in enumerate(sout):
             curr_out = curr_out.reshape(1, size[-1])
@@ -89,7 +90,7 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
                 sampling_out = torch.cat([sampling_out, curr_out], axis=1)
             else:
                 sample_lst.append(sampling_out)
-                sampling_out = torch.empty((0, size[-1]))
+                sampling_out = torch.empty((0, size[-1])).to(torch.device("cuda"))
                 sampling_out = torch.cat([sampling_out, curr_out], axis=0)
         sample_lst.append(sampling_out)
         sample_out = torch.cat(sample_lst, axis=0)
