@@ -74,6 +74,8 @@ def base_params():
     # Global params
     parser.add_argument('--num_classes', type=int, default=2,
                         help='both row and col classification as binary classification')
+    parser.add_argument('--version', type=str, default='v_1_b',
+                        help='which version of the current model config. v_1_a | v_1_b | v_1_c')
 
     # Position feature params 
     parser.add_argument('--num_hidden_features', type=int, default=64, 
@@ -106,7 +108,7 @@ def train_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='table_structure_recognition',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='version_1_a',
+    parser.add_argument('--run', type=str, default='version_1_b_lr_schedule',
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
@@ -125,14 +127,14 @@ def train_params():
 
     parser.add_argument('--lr', type=float, default=1e-3,
                         help='initial learning rate for training')
-    parser.add_argument('--schedule_lr', type=bool, default=False,
+    parser.add_argument('--schedule_lr', type=bool, default=True,
                         help='whether to perform learning rate scheduling')
     parser.add_argument('--lr_patience', type=int, default=5,
                         help='number of epochs of no improvement after which lr will be reduced')
     parser.add_argument('--lr_reduce_factor', type=float, default=0.5,
                         help='factor by which to reduce the learning rate')
     parser.add_argument('--lr_schedule_mode', type=str, default='min',
-                        help='monitoring val loss, if monitoring val accuracy convert to max')
+                        help='monitoring train loss, if monitoring train accuracy convert to max')
     parser.add_argument('--lr_cooldonw', type=int, default=2,
                         help='number of epochs to wait before resuming normal operations after lr reduction')
     parser.add_argument('--min_lr', type=float, default=1e-5,
@@ -147,7 +149,7 @@ def train_params():
 
     parser.add_argument('--logging_interval', type=int, default=20,
                         help='interval at which to log information')
-    parser.add_argument('--val_iterval', type=int, default=10,
+    parser.add_argument('--val_interval', type=int, default=10,
                         help='interval at which validation will be performed and logged')
     parser.add_argument('--save_interval', type=int, default=1,
                         help='interval at which model check will be done to save best')

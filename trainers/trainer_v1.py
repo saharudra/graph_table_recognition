@@ -68,33 +68,44 @@ def main(config):
     print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
         train_loss, train_row_loss, train_col_loss = train(model, optimizer, train_loader, epoch)
-        val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc = eval(model, val_loader, epoch)
-
+        
         # Log information
         wandb.log(
             {
                 'train_loss': train_loss,
                 'train_row_loss': train_row_loss,
-                'train_col_loss': train_col_loss,
-                'val_loss': val_loss,
-                'val_row_loss': val_row_loss,
-                'val_col_loss': val_col_loss,
-                'val_acc': val_acc,
-                'val_row_acc': val_row_acc,
-                'val_col_acc': val_col_acc,
+                'train_col_loss': train_col_loss
             }
         )
 
+        if epoch % trainer_params.val_interval == 0:
+            val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc = eval(model, val_loader, epoch)
+
+            # Log information
+            wandb.log(
+                {
+                    'train_loss': train_loss,
+                    'train_row_loss': train_row_loss,
+                    'train_col_loss': train_col_loss,
+                    'val_loss': val_loss,
+                    'val_row_loss': val_row_loss,
+                    'val_col_loss': val_col_loss,
+                    'val_acc': val_acc,
+                    'val_row_acc': val_row_acc,
+                    'val_col_acc': val_col_acc,
+                }
+            )
+
         # Schedule learning rate
         if trainer_params.schedule_lr:
-            lr_scheduler.step(val_loss)
+            lr_scheduler.step(train_loss)
         
         # Save models based on accuracy
         if epoch % trainer_params.save_interval == 0:
-            if val_accuracy > best_accuracy:
+            if val_acc > best_accuracy:
                 model_path = log_path + os.sep + "net_{}_best_so_far.pth".format(epoch)
                 torch.save(model.state_dict(), model_path)
-                best_accuracy = val_accuracy
+                best_accuracy = val_acc
                 best_epoch = epoch
         
     print("*** TRAINING IS COMPLETE ***")
@@ -160,11 +171,15 @@ def eval(model, val_loader, epoch):
             # Accuracy calculation
             _, row_pred = row_pred.max(1)
             _, col_pred = col_pred.max(1)
+            
             row_label = data.y_row.detach().cpu().numpy()
+            row_pred = row_pred.detach().cpu().numpy()
+            
             col_label = data.y_col.detach().cpu().numpy()
+            col_pred = col_pred.detach().cpu().numpy()
 
-            n_correct_row += (row_label == row_pred).sum()
-            n_correct_col += (col_label == col_pred).sum()
+            n_correct_row = n_correct_row + (row_label == row_pred).sum()
+            n_correct_col = n_correct_col + (col_label == col_pred).sum()
             n_total_row += row_label.shape[0]
             n_total_col += col_label.shape[0]
 
@@ -177,7 +192,7 @@ def eval(model, val_loader, epoch):
     # Averaging row and col accuracy for overall accuracy
     val_acc = (val_row_acc + val_col_acc) * 0.5
 
-    return val_loss, val_row_loss, val_col_loss, val_accuracy, val_row_acc, val_col_acc
+    return val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc
 
 
 def loss_function(pred_row, data_row, pred_col, data_col):
