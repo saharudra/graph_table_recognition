@@ -56,6 +56,9 @@ def main(config):
                                             factor=trainer_params.lr_reduce_factor, verbose=True, 
                                             mode=trainer_params.lr_schedule_mode,
                                             cooldown=trainer_params.lr_cooldown, min_lr=trainer_params.min_lr)
+    
+    # Define loss criteria
+    loss_criteria = nn.NLLLoss()
 
     # Watch model
     wandb.watch(model)
@@ -67,32 +70,24 @@ def main(config):
     # Outer train loop
     print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
-        train_loss, train_row_loss, train_col_loss = train(model, optimizer, train_loader, epoch)
+        train_loss = train(model, optimizer, train_loader, epoch, loss_criteria)
         
         # Log information
         wandb.log(
             {
-                'train_loss': train_loss,
-                'train_row_loss': train_row_loss,
-                'train_col_loss': train_col_loss
+                'train_loss': train_loss
             }
         )
 
         if epoch % trainer_params.val_interval == 0:
-            val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc = eval(model, val_loader, epoch)
+            val_loss, val_acc= eval(model, val_loader, epoch, loss_criteria)
 
             # Log information
             wandb.log(
                 {
                     'train_loss': train_loss,
-                    'train_row_loss': train_row_loss,
-                    'train_col_loss': train_col_loss,
                     'val_loss': val_loss,
-                    'val_row_loss': val_row_loss,
-                    'val_col_loss': val_col_loss,
-                    'val_acc': val_acc,
-                    'val_row_acc': val_row_acc,
-                    'val_col_acc': val_col_acc,
+                    'val_acc': val_acc
                 }
             )
 
@@ -112,98 +107,69 @@ def main(config):
     print("Best validation accuracy: {}, in epoch: {}".format(best_accuracy, best_epoch))
 
 
-def train(model, optimizer, train_loader, epoch):
+def train(model, optimizer, train_loader, epoch, loss_criteria):
     # Train loop for a batch
     model.train()
 
     epoch_loss = 0.0
-    epoch_row_loss = 0.0
-    epoch_col_loss = 0.0
 
     for idx, data in enumerate(train_loader):
         # Perform single train step
         data = data.to(DEVICE)
-        row_pred, col_pred = model(data)
-        row_loss, col_loss = loss_function(row_pred, data.y_row, col_pred, data.y_col)
-        # Overall loss average of row loss and col loss
-        loss = (row_loss + col_loss) * 0.5
+        row_pred = model(data)
+        row_loss = loss_function(row_pred, data.y_row, loss_criteria)
+        # Overall loss
+        loss = row_loss
         loss.backward()
         optimizer.step()
         
         # Aggregate losses
         epoch_loss += loss.item()
-        epoch_row_loss += row_loss.item()
-        epoch_col_loss += col_loss.item()
 
     epoch_loss /= len(train_loader.dataset)
-    epoch_row_loss /= len(train_loader.dataset)
-    epoch_col_loss /= len(train_loader.dataset)
-    print("Epoch: {}, Overall Loss: {}, Row Loss: {}, Col Loss: {}".format(epoch, epoch_loss, epoch_row_loss, epoch_col_loss))
+    print("Epoch: {}, Overall Loss: {}".format(epoch, epoch_loss))
 
-    return epoch_loss, epoch_row_loss, epoch_col_loss
+    return epoch_loss
 
 
-def eval(model, val_loader, epoch):
+def eval(model, val_loader, epoch, loss_criteria):
     # Eval loop 
     model.eval()
     
     val_loss = 0.0
-    val_row_loss = 0.0
-    val_col_loss = 0.0
 
     n_correct_row = 0.0
-    n_correct_col = 0.0
     n_total_row = 0.0
-    n_total_col = 0.0
 
     with torch.no_grad():
         for idx, data in enumerate(val_loader):
             data = data.to(DEVICE)
-            row_pred, col_pred = model(data)
-            row_loss, col_loss = loss_function(row_pred, data.y_row, col_pred, data.y_col)
-            # Overall loss average of row loss and col loss
-            loss = (row_loss + col_loss) * 0.5
+            row_pred = model(data)
+            row_loss = loss_function(row_pred, data.y_row, loss_criteria)
+            loss = row_loss
 
             val_loss += loss.item()
-            val_row_loss += row_loss.item()
-            val_col_loss += col_loss.item()
             
             # Accuracy calculation
             _, row_pred = row_pred.max(1)
-            _, col_pred = col_pred.max(1)
             
             row_label = data.y_row.detach().cpu().numpy()
             row_pred = row_pred.detach().cpu().numpy()
-            
-            col_label = data.y_col.detach().cpu().numpy()
-            col_pred = col_pred.detach().cpu().numpy()
 
             n_correct_row = n_correct_row + (row_label == row_pred).sum()
-            n_correct_col = n_correct_col + (col_label == col_pred).sum()
             n_total_row += row_label.shape[0]
-            n_total_col += col_label.shape[0]
 
     val_loss /= len(val_loader.dataset)
-    val_row_loss /= len(val_loader.dataset)
-    val_col_loss /= len(val_loader.dataset)
+    val_acc = n_correct_row / n_total_row
 
-    val_row_acc = n_correct_row / n_total_row
-    val_col_acc = n_correct_col / n_total_col
-    # Averaging row and col accuracy for overall accuracy
-    val_acc = (val_row_acc + val_col_acc) * 0.5
-
-    return val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc
+    return val_loss, val_acc
 
 
-def loss_function(pred_row, data_row, pred_col, data_col):
-    # Loss crieteria
-    row_criteria = nn.NLLLoss()
-    col_criteria = nn.NLLLoss()
+def loss_function(pred_row, data_row, loss_criteria):
 
-    row_loss = row_criteria(pred_row, data_row)
-    col_loss = col_criteria(pred_col, data_col)
+    row_loss = loss_criteria(pred_row, data_row)
 
-    return row_loss, col_loss
+    return row_loss
 
 
 if __name__ == "__main__":
@@ -214,9 +180,9 @@ if __name__ == "__main__":
     model_base_params = base_params()
 
     # Set params for row only things
-    trainer_params.row_only = False
-    trainer_params.col_only = False
-    trainer_params.multi_task = True
+    trainer_params.row_only = True
+    trainer_params.  _only = False
+    trainer_params.multi_task = False
 
     # Seed things
     torch.manual_seed(trainer_params.seed)

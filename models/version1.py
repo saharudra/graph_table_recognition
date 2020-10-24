@@ -44,10 +44,11 @@ class TbNetV1(nn.Module):
     Both text features and image features go through their respective 
     graph convolutions before edge feature generation.
     """
-    def __init__(self, base_params, img_model_params):
+    def __init__(self, base_params, img_model_params, trainer_params):
         super(TbNetV1, self).__init__()
         self.base_params = base_params
         self.img_model_params = img_model_params
+        self.trainer_params = trainer_params
         self.img_model = ConvBaseGFTE(self.img_model_params)
 
         # position transformation layer
@@ -123,15 +124,22 @@ class TbNetV1(nn.Module):
         edge_image_features = F.relu(self.lin_img(edge_image_features))
 
         # Separate heads for row and col classification
-        edge_row_features = torch.cat((edge_pos_features, edge_text_features, edge_image_features), dim=1)
-        edge_row_features = self.lin_row(edge_row_features)
-        row_pred = F.log_softmax(edge_row_features, dim=1)
+        if self.trainer_params.row_only or self.trainer_params.multi_task:
+            edge_row_features = torch.cat((edge_pos_features, edge_text_features, edge_image_features), dim=1)
+            edge_row_features = self.lin_row(edge_row_features)
+            row_pred = F.log_softmax(edge_row_features, dim=1)
 
-        edge_col_features = torch.cat((edge_pos_features, edge_text_features, edge_image_features), dim=1)
-        edge_col_features = self.lin_col(edge_col_features)
-        col_pred = F.log_softmax(edge_col_features, dim=1)
-
-        return row_pred, col_pred
+        if self.trainer_params.col_only or self.trainer_params.multi_task:
+            edge_col_features = torch.cat((edge_pos_features, edge_text_features, edge_image_features), dim=1)
+            edge_col_features = self.lin_col(edge_col_features)
+            col_pred = F.log_softmax(edge_col_features, dim=1)
+        
+        if self.trainer_params.multi_task:
+            return row_pred, col_pred
+        elif self.trainer_params.row_only:
+            return row_pred
+        elif self.trainer_params.col_only:
+            return col_pred
 
 
 

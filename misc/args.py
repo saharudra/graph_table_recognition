@@ -114,6 +114,12 @@ def train_params():
                         help='seed value for reproducibility')
     parser.add_argument('--device', type=str, default='cuda',
                         help='device to run the code on cuda | cpu')
+    parser.add_argument('--row_only', type=bool, default=False,
+                        help='trains a row only model')
+    parser.add_argument('--col_only', type=bool, default=False,
+                        help='trains a col only model')
+    parser.add_argument('--multi_task', type=bool, default=True,
+                        help='trains a multi-task model')
 
     # Dataloader arguments
     parser.add_argument('--workers', type=int, default=0,
