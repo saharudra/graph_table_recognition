@@ -70,7 +70,8 @@ def main(config):
     # Outer train loop
     print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
-        train_loss = train(model, optimizer, train_loader, epoch, loss_criteria)
+        train_loss = train(model, optimizer, train_loader, loss_criteria)
+        print("Epoch: {}, Overall Loss: {}".format(epoch, train_loss))
         
         # Log information
         wandb.log(
@@ -80,7 +81,7 @@ def main(config):
         )
 
         if epoch % trainer_params.val_interval == 0:
-            val_loss, val_acc= eval(model, val_loader, epoch, loss_criteria)
+            val_loss, val_acc = eval(model, val_loader, loss_criteria)
 
             # Log information
             wandb.log(
@@ -107,7 +108,7 @@ def main(config):
     print("Best validation accuracy: {}, in epoch: {}".format(best_accuracy, best_epoch))
 
 
-def train(model, optimizer, train_loader, epoch, loss_criteria):
+def train(model, optimizer, train_loader, loss_criteria):
     # Train loop for a batch
     model.train()
 
@@ -127,12 +128,11 @@ def train(model, optimizer, train_loader, epoch, loss_criteria):
         epoch_loss += loss.item()
 
     epoch_loss /= len(train_loader.dataset)
-    print("Epoch: {}, Overall Loss: {}".format(epoch, epoch_loss))
-
+    
     return epoch_loss
 
 
-def eval(model, val_loader, epoch, loss_criteria):
+def eval(model, val_loader, loss_criteria):
     # Eval loop 
     model.eval()
     
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
     # Set params for row only things
     trainer_params.row_only = True
-    trainer_params.  _only = False
+    trainer_params.col_only = False
     trainer_params.multi_task = False
 
     # Seed things

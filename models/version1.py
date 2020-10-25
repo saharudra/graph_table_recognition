@@ -134,6 +134,7 @@ class TbNetV1(nn.Module):
             edge_col_features = self.lin_col(edge_col_features)
             col_pred = F.log_softmax(edge_col_features, dim=1)
         
+        # Row-specific, col-specific or both
         if self.trainer_params.multi_task:
             return row_pred, col_pred
         elif self.trainer_params.row_only:

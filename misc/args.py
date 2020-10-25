@@ -108,12 +108,14 @@ def train_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='table_structure_recognition',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='version_1_b_lr_schedule',
+    parser.add_argument('--run', type=str, default='version_1_row_only',
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
     parser.add_argument('--device', type=str, default='cuda',
                         help='device to run the code on cuda | cpu')
+
+    # Training type arguments
     parser.add_argument('--row_only', type=bool, default=False,
                         help='trains a row only model')
     parser.add_argument('--col_only', type=bool, default=False,
