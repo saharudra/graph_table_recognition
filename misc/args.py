@@ -108,7 +108,7 @@ def train_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='table_structure_recognition',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='version_1_col',
+    parser.add_argument('--run', type=str, default='version_1_row',
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
