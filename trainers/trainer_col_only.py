@@ -70,7 +70,8 @@ def main(config):
     # Outer train loop
     print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
-        train_loss = train(model, optimizer, train_loader, epoch, loss_criteria)
+        train_loss = train(model, optimizer, train_loader, loss_criteria)
+        print("Epoch: {}, Overall Loss: {}".format(epoch, train_loss))
         
         # Log information
         wandb.log(
@@ -80,14 +81,14 @@ def main(config):
         )
 
         if epoch % trainer_params.val_interval == 0:
-            val_loss, val_acc= eval(model, val_loader, epoch, loss_criteria)
+            val_loss, val_acc = eval(model, val_loader, loss_criteria)
 
             # Log information
             wandb.log(
                 {
                     'train_loss': train_loss,
                     'val_loss': val_loss,
-                    'val_acc': val_acc
+                    'val_col_acc': val_acc
                 }
             )
 
@@ -107,7 +108,7 @@ def main(config):
     print("Best validation accuracy: {}, in epoch: {}".format(best_accuracy, best_epoch))
 
 
-def train(model, optimizer, train_loader, epoch, loss_criteria):
+def train(model, optimizer, train_loader, loss_criteria):
     # Train loop for a batch
     model.train()
 
@@ -124,15 +125,14 @@ def train(model, optimizer, train_loader, epoch, loss_criteria):
         optimizer.step()
         
         # Aggregate losses
-        epoch_loss += loss.item()
+        epoch_loss += loss.detach().item()
 
     epoch_loss /= len(train_loader.dataset)
-    print("Epoch: {}, Overall Loss: {}".format(epoch, epoch_loss))
 
     return epoch_loss
 
 
-def eval(model, val_loader, epoch, loss_criteria):
+def eval(model, val_loader, loss_criteria):
     # Eval loop 
     model.eval()
     
@@ -148,7 +148,7 @@ def eval(model, val_loader, epoch, loss_criteria):
             col_loss = loss_function(col_pred, data.y_col, loss_criteria)
             loss = col_loss
 
-            val_loss += loss.item()
+            val_loss += loss.detach().item()
             
             # Accuracy calculation
             _, col_pred = col_pred.max(1)
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     trainer_params = train_params()
     model_base_params = base_params()
 
-    # Set params for row only things
+    # Set params for col only things
     trainer_params.row_only = False
     trainer_params.col_only = True
     trainer_params.multi_task = False
@@ -199,10 +199,15 @@ if __name__ == "__main__":
     # Set CUDA access
     use_cuda = torch.cuda.is_available() and trainer_params.device == 'cuda'
     if use_cuda:
+        print("#" * 100)
+        print("Using CUDA")
+        print("#" * 100)
         DEVICE = torch.device("cuda")
     else:
+        print("#" * 100)
         print('Warning: CPU is being used to run model,\
              CUDA device not being used for current run')
+        print("#" * 100)
         DEVICE = torch.device("cpu")
 
 

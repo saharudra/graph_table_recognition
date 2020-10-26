@@ -16,7 +16,7 @@ def scitsr_params():
                         help='size of the image taken in by the model')
     parser.add_argument('--kernel_size', type=int, default=3,
                         help='size of the kernel for dilation or erosion')
-    parser.add_argument('--device', type=str, default='cpu',
+    parser.add_argument('--device', type=str, default='cuda',
                         help='device to run graph transform on, currently cpu')
     parser.add_argument('--graph_k', type=int, default=6,
                         help='K-value for KNN graph transform')
@@ -108,7 +108,7 @@ def train_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='table_structure_recognition',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='version_1_row_only',
+    parser.add_argument('--run', type=str, default='version_1_col',
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
@@ -118,9 +118,9 @@ def train_params():
     # Training type arguments
     parser.add_argument('--row_only', type=bool, default=False,
                         help='trains a row only model')
-    parser.add_argument('--col_only', type=bool, default=False,
+    parser.add_argument('--col_only', type=bool, default=True,
                         help='trains a col only model')
-    parser.add_argument('--multi_task', type=bool, default=True,
+    parser.add_argument('--multi_task', type=bool, default=False,
                         help='trains a multi-task model')
 
     # Dataloader arguments
@@ -135,7 +135,7 @@ def train_params():
 
     parser.add_argument('--lr', type=float, default=1e-3,
                         help='initial learning rate for training')
-    parser.add_argument('--schedule_lr', type=bool, default=True,
+    parser.add_argument('--schedule_lr', type=bool, default=False,
                         help='whether to perform learning rate scheduling')
     parser.add_argument('--lr_patience', type=int, default=5,
                         help='number of epochs of no improvement after which lr will be reduced')
@@ -143,7 +143,7 @@ def train_params():
                         help='factor by which to reduce the learning rate')
     parser.add_argument('--lr_schedule_mode', type=str, default='min',
                         help='monitoring train loss, if monitoring train accuracy convert to max')
-    parser.add_argument('--lr_cooldonw', type=int, default=2,
+    parser.add_argument('--lr_cooldown', type=int, default=2,
                         help='number of epochs to wait before resuming normal operations after lr reduction')
     parser.add_argument('--min_lr', type=float, default=1e-5,
                         help='minimum lr for learning rate scheduling')
@@ -155,9 +155,7 @@ def train_params():
     parser.add_argument('--beta2', type=float, default=0.999,
                         help='beta2 for adam optimizer')
 
-    parser.add_argument('--logging_interval', type=int, default=20,
-                        help='interval at which to log information')
-    parser.add_argument('--val_interval', type=int, default=10,
+    parser.add_argument('--val_interval', type=int, default=5,
                         help='interval at which validation will be performed and logged')
     parser.add_argument('--save_interval', type=int, default=1,
                         help='interval at which model check will be done to save best')

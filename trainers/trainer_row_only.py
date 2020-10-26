@@ -88,7 +88,7 @@ def main(config):
                 {
                     'train_loss': train_loss,
                     'val_loss': val_loss,
-                    'val_acc': val_acc
+                    'val_row_acc': val_acc
                 }
             )
 
