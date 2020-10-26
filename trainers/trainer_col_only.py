@@ -191,7 +191,9 @@ if __name__ == "__main__":
     random.seed(trainer_params.seed)
 
     # Create save locations
-    root_path = os.getcwd() + os.sep + trainer_params.exp + os.sep + trainer_params.run
+    time = datetime.now()
+    time = time.strftime('%Y_%m_%d_%H_%M')
+    root_path = os.getcwd() + os.sep + trainer_params.exp + os.sep + trainer_params.run + '_' + time
     mkdir_p(root_path)
     log_path = root_path + os.sep + '/checkpoints'
     mkdir_p(log_path)
@@ -223,7 +225,8 @@ if __name__ == "__main__":
     print("#" * 100)
 
     # Initialize wandb config
-    wandb.init(entity='rsaha', project='table_structure_recognition', config=config_dict)
+    wandb_name = trainer_params.run + '_' + time
+    wandb.init(name=wandb_name, entity='rsaha', project='table_structure_recognition', config=config_dict)
 
     namespace_config_dict = {'img_params': img_params,
                              'dataset_params': dataset_params,

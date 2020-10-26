@@ -57,6 +57,9 @@ def main(config):
                                             mode=trainer_params.lr_schedule_mode,
                                             cooldown=trainer_params.lr_cooldown, min_lr=trainer_params.min_lr)
 
+    # Define loss criteria
+    loss_criteria = nn.NLLLoss()
+    
     # Watch model
     wandb.watch(model)
 
@@ -67,7 +70,8 @@ def main(config):
     # Outer train loop
     print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
-        train_loss, train_row_loss, train_col_loss = train(model, optimizer, train_loader, epoch)
+        train_loss, train_row_loss, train_col_loss = train(model, optimizer, train_loader, loss_criteria)
+        print("Epoch: {}, Overall Loss: {}, Row Loss: {}, Col Loss: {}".format(epoch, epoch_loss, epoch_row_loss, epoch_col_loss))
         
         # Log information
         wandb.log(
@@ -79,7 +83,7 @@ def main(config):
         )
 
         if epoch % trainer_params.val_interval == 0:
-            val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc = eval(model, val_loader, epoch)
+            val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc = eval(model, val_loader, loss_criteria)
 
             # Log information
             wandb.log(
@@ -112,7 +116,7 @@ def main(config):
     print("Best validation accuracy: {}, in epoch: {}".format(best_accuracy, best_epoch))
 
 
-def train(model, optimizer, train_loader, epoch):
+def train(model, optimizer, train_loader, loss_criteria):
     # Train loop for a batch
     model.train()
 
@@ -124,7 +128,7 @@ def train(model, optimizer, train_loader, epoch):
         # Perform single train step
         data = data.to(DEVICE)
         row_pred, col_pred = model(data)
-        row_loss, col_loss = loss_function(row_pred, data.y_row, col_pred, data.y_col)
+        row_loss, col_loss = loss_function(row_pred, data.y_row, col_pred, data.y_col, loss_criteria)
         # Overall loss average of row loss and col loss
         loss = (row_loss + col_loss) * 0.5
         loss.backward()
@@ -138,12 +142,11 @@ def train(model, optimizer, train_loader, epoch):
     epoch_loss /= len(train_loader.dataset)
     epoch_row_loss /= len(train_loader.dataset)
     epoch_col_loss /= len(train_loader.dataset)
-    print("Epoch: {}, Overall Loss: {}, Row Loss: {}, Col Loss: {}".format(epoch, epoch_loss, epoch_row_loss, epoch_col_loss))
 
     return epoch_loss, epoch_row_loss, epoch_col_loss
 
 
-def eval(model, val_loader, epoch):
+def eval(model, val_loader, loss_criteria):
     # Eval loop 
     model.eval()
     
@@ -160,7 +163,7 @@ def eval(model, val_loader, epoch):
         for idx, data in enumerate(val_loader):
             data = data.to(DEVICE)
             row_pred, col_pred = model(data)
-            row_loss, col_loss = loss_function(row_pred, data.y_row, col_pred, data.y_col)
+            row_loss, col_loss = loss_function(row_pred, data.y_row, col_pred, data.y_col, loss_criteria)
             # Overall loss average of row loss and col loss
             loss = (row_loss + col_loss) * 0.5
 
@@ -195,13 +198,10 @@ def eval(model, val_loader, epoch):
     return val_loss, val_row_loss, val_col_loss, val_acc, val_row_acc, val_col_acc
 
 
-def loss_function(pred_row, data_row, pred_col, data_col):
-    # Loss crieteria
-    row_criteria = nn.NLLLoss()
-    col_criteria = nn.NLLLoss()
+def loss_function(pred_row, data_row, pred_col, data_col, loss_criteria):
 
-    row_loss = row_criteria(pred_row, data_row)
-    col_loss = col_criteria(pred_col, data_col)
+    row_loss = loss_criteria(pred_row, data_row)
+    col_loss = loss_criteria(pred_col, data_col)
 
     return row_loss, col_loss
 
@@ -225,7 +225,9 @@ if __name__ == "__main__":
     random.seed(trainer_params.seed)
 
     # Create save locations
-    root_path = os.getcwd() + os.sep + trainer_params.exp + os.sep + trainer_params.run
+    time = datetime.now()
+    time = time.strftime('%Y_%m_%d_%H_%M')
+    root_path = os.getcwd() + os.sep + trainer_params.exp + os.sep + trainer_params.run + '_' + time
     mkdir_p(root_path)
     log_path = root_path + os.sep + '/checkpoints'
     mkdir_p(log_path)
@@ -252,7 +254,8 @@ if __name__ == "__main__":
     print("#" * 100)
 
     # Initialize wandb config
-    wandb.init(entity='rsaha', project='table_structure_recognition', config=config_dict)
+    wandb_name = trainer_params.run + '_' + time
+    wandb.init(name=wandb_name, entity='rsaha', project='table_structure_recognition', config=config_dict)
 
     namespace_config_dict = {'img_params': img_params,
                              'dataset_params': dataset_params,
