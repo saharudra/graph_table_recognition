@@ -74,8 +74,6 @@ def base_params():
     # Global params
     parser.add_argument('--num_classes', type=int, default=2,
                         help='both row and col classification as binary classification')
-    parser.add_argument('--version', type=str, default='v_1_b',
-                        help='which version of the current model config. v_1_a | v_1_b | v_1_c')
 
     # Position feature params 
     parser.add_argument('--num_hidden_features', type=int, default=64, 
@@ -108,7 +106,7 @@ def train_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='table_structure_recognition',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='V_1_multi_lr_schedule_text_sum',
+    parser.add_argument('--run', type=str, default='2_c_col',
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
@@ -116,12 +114,16 @@ def train_params():
                         help='device to run the code on cuda | cpu')
 
     # Training type arguments
+    parser.add_argument('--maj_ver', type=str, default='2',
+                        help='major model version to train: 1 | 2 ...')
+    parser.add_argument('--min_ver', type=str, default='c',
+                        help='minor model version to train 2."a" ...: a | b | c | ...')
     parser.add_argument('--row_only', type=bool, default=False,
-                        help='trains a row only model')
-    parser.add_argument('--col_only', type=bool, default=False,
-                        help='trains a col only model')
-    parser.add_argument('--multi_task', type=bool, default=True,
-                        help='trains a multi-task model')
+                        help='trains above model with row only loss and reports row acc.')
+    parser.add_argument('--col_only', type=bool, default=True,
+                        help='trains above model with col only loss and reports col acc.')
+    parser.add_argument('--multi_task', type=bool, default=False,
+                        help='trains above model with multi-task loss and reports row/col acc.')
 
     # Dataloader arguments
     parser.add_argument('--workers', type=int, default=0,

@@ -18,10 +18,18 @@ import wandb
 from datetime import datetime
 
 from models.version1 import TbNetV1
+from models.version2 import TbNetV2
 from dataloaders.scitsr import ScitsrDataset
 from misc.args import train_params, scitsr_params, img_model_params, base_params
 from ops.misc import weights_init, mkdir_p
 
+"""
+Note on current training methods:
+Training methods are agnostic to models that take same input features
+to produce desired classification:
+
+Versions: 1, 2 (row/col/multi)
+"""
 
 def main(config):
     # Separate params
@@ -37,8 +45,11 @@ def main(config):
     val_dataset = ScitsrDataset(dataset_params, partition='test')
     val_loader = DataLoader(val_dataset, batch_size=trainer_params.batch_size, shuffle=False)
 
-    # Define model
-    model = TbNetV1(base_params, img_model_params, trainer_params)
+    # Define model based on version
+    if trainer_params.maj_ver == '1':
+        model = TbNetV1(base_params, img_model_params, trainer_params)
+    elif trainer_params.maj_ver == '2':
+        model = TbNetV2(base_params, img_model_params, trainer_params)
     model.to(DEVICE)
     # TODO: Weight initialization
     # model.apply(weights_init)
@@ -180,7 +191,7 @@ if __name__ == "__main__":
     trainer_params = train_params()
     model_base_params = base_params()
 
-    # Set params for col only things
+    # Set params for col only things cause sometimes I am stupid :P
     trainer_params.row_only = False
     trainer_params.col_only = True
     trainer_params.multi_task = False

@@ -27,7 +27,7 @@ class TbNetV2(nn.Module):
         self.trainer_params = trainer_params
 
         # image transformation layer
-        self.img_model = ConvBaseGFTE(self.img_model_params)
+        self.img_model = ConvBaseGFTE(self.image_model_params)
         if self.trainer_params.maj_ver == '2' and (self.trainer_params.min_ver == 'b' or self.trainer_params.min_ver == 'c'):
             self.conv_img_1 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
             self.conv_img_2 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
@@ -66,7 +66,6 @@ class TbNetV2(nn.Module):
         x, edge_index, xtext, img, nodenum, pos, cell_wh = data.x, data.edge_index, data.xtext, data.img, data.nodenum, data.pos, data.cell_wh
 
         # Transform position features
-        import pdb; pdb.set_trace()
         position_features = self.conv1(x, edge_index)
         position_features = F.relu(position_features)
         position_features = self.conv2(position_features, edge_index)
@@ -94,20 +93,20 @@ class TbNetV2(nn.Module):
         edge_pos_features = F.relu(self.lin_pos(edge_pos_features))
 
         # Text
-        if self.trainer_params.maj_ver == '2' and (self.trainer_params.min_ver == 'a' or self.trainer_params.min_ver == 'c')
-            text_features = F.relu(self.conv_text_1(text_features))
-            text_features = F.relu(self.conv_text_2(text_features))
+        if self.trainer_params.maj_ver == '2' and (self.trainer_params.min_ver == 'a' or self.trainer_params.min_ver == 'c'):
+            text_features = F.relu(self.conv_text_1(text_features, edge_index))
+            text_features = F.relu(self.conv_text_2(text_features, edge_index))
         n1_text_features = text_features[edge_index[0]]
         n2_text_features = text_features[edge_index[1]]
         edge_text_features = torch.cat((n1_text_features, n2_text_features), dim=1)
         edge_text_features = F.relu(self.lin_text(edge_text_features))
 
         # Image
-        if self.trainer_params.maj_ver == '2' and (self.trainer_params.min_ver == 'b' or self.trainer_params.min_ver == 'c')
-            image_features = F.relu(self.conv_img_1(image_features))
-            image_features = F.relu(self.conv_img_2(image_features))
+        if self.trainer_params.maj_ver == '2' and (self.trainer_params.min_ver == 'b' or self.trainer_params.min_ver == 'c'):
+            image_features = F.relu(self.conv_img_1(image_features, edge_index))
+            image_features = F.relu(self.conv_img_2(image_features, edge_index))
         n1_image_features = image_features[edge_index[0]]
-        n2_text_features = image_features[edge_index[1]]
+        n2_image_features = image_features[edge_index[1]]
         edge_image_features = torch.cat((n1_image_features, n2_image_features), dim=1)
         edge_image_features = F.relu(self.lin_img(edge_image_features))
 
