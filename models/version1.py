@@ -82,7 +82,10 @@ class TbNetV1(nn.Module):
         # Transform text features 
         xtext = self.embeds(xtext)
         text_features, _ = self.gru(xtext)
-        text_features = text_features[:, -1, :]
+        # text features sliced
+        # text_features = text_features[:, -1, :]
+        # text features summed
+        text_features = torch.sum(text_features, dim=1)
 
         # Transform image features
         image_global_features = self.img_model(img)
