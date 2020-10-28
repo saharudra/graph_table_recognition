@@ -9,7 +9,7 @@ from ops.sample_image_features import sample_box_features
 
 class TbNetV1(nn.Module):
     """
-    VERSION 1.a)
+    VERSION 1)
     
     Position features are transformed via multiple layers of  
     graph convolutional operator from the “Semi-supervised 
@@ -35,14 +35,6 @@ class TbNetV1(nn.Module):
     Add a separate head for calssifying edge featueres concatenated and 
     passed through another linear + relu block followed by a softmax
     to classify each edge as either a col/not_a_col.
-
-    VERSION 1.b)
-    Text features go through their respective graph convolutions before 
-    edge feature generation.
-
-    Version 1.c)
-    Both text features and image features go through their respective 
-    graph convolutions before edge feature generation.
     """
     def __init__(self, base_params, img_model_params, trainer_params):
         super(TbNetV1, self).__init__()
@@ -59,8 +51,6 @@ class TbNetV1(nn.Module):
         self.embeds = nn.Embedding(self.base_params.vocab_size, self.base_params.num_text_features)
         self.gru = nn.GRU(self.base_params.num_text_features, self.base_params.num_hidden_features, \
                           bidirectional=self.base_params.bidirectional, batch_first=True)
-        self.conv_text_1 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
-        self.conv_text_2 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
 
         # edge feature generation layers
         self.lin_pos = nn.Linear(self.base_params.num_hidden_features * 2, self.base_params.num_hidden_features)
@@ -93,12 +83,6 @@ class TbNetV1(nn.Module):
         xtext = self.embeds(xtext)
         text_features, _ = self.gru(xtext)
         text_features = text_features[:, -1, :]
-
-        if self.base_params.version == 'v_1_b' or self.base_params.version == 'v_1_c':
-            text_features = self.conv_text_1(text_features, edge_index)
-            text_features = F.relu(text_features)
-            text_features = self.conv_text_2(text_features, edge_index)
-            text_features = F.relu(text_features)
 
         # Transform image features
         image_global_features = self.img_model(img)
