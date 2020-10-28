@@ -15,6 +15,7 @@ import math
 import json
 import random
 import wandb
+from datetime import datetime
 
 from models.version1 import TbNetV1
 from dataloaders.scitsr import ScitsrDataset
@@ -71,7 +72,7 @@ def main(config):
     print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
         train_loss, train_row_loss, train_col_loss = train(model, optimizer, train_loader, loss_criteria)
-        print("Epoch: {}, Overall Loss: {}, Row Loss: {}, Col Loss: {}".format(epoch, epoch_loss, epoch_row_loss, epoch_col_loss))
+        print("Epoch: {}, Overall Loss: {}, Row Loss: {}, Col Loss: {}".format(epoch, train_loss, train_row_loss, train_col_loss))
         
         # Log information
         wandb.log(

@@ -92,7 +92,7 @@ def base_params():
                         help='whether to consider a bidirectional rnn')
 
     # Image feature params
-    parser.add_argument('--num_samples', type=int, default=5,
+    parser.add_argument('--num_samples', type=int, default=10,
                         help='number of points to sample image features from for each cell text')
     parser.add_argument('--div', type=float, default=16.0,
                         help='defining kurtosis of each of the isotropic gaussian distribution')
@@ -108,7 +108,7 @@ def train_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='table_structure_recognition',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='V_1_col_5_samples_lr_schedule',
+    parser.add_argument('--run', type=str, default='V_1_multi_task_10_samples',
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
@@ -135,7 +135,7 @@ def train_params():
 
     parser.add_argument('--lr', type=float, default=1e-3,
                         help='initial learning rate for training')
-    parser.add_argument('--schedule_lr', type=bool, default=True,
+    parser.add_argument('--schedule_lr', type=bool, default=False,
                         help='whether to perform learning rate scheduling')
     parser.add_argument('--lr_patience', type=int, default=5,
                         help='number of epochs of no improvement after which lr will be reduced')
