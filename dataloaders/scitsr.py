@@ -41,7 +41,7 @@ class ScitsrDataset(Dataset):
 
         # Create a list of images as a json file
         self.jsonfile = os.path.join(self.root_path, 'imglist.json')
-        if os.path.exists(self.jsonfile):
+        if os.path.exists(self.jsonfile) and not self.params.new_imglist:
             with open(self.jsonfile, 'r') as rf:
                 self.imglist = json.load(rf)
         else:
@@ -79,6 +79,7 @@ class ScitsrDataset(Dataset):
             print('*** file:', self.imglist[idx])
             # structs, chunks, img, rels = self.readlabel(idx)
             structs, chunks, img = self.readlabel(idx)
+            print(structs, chunks)
             vi = self.check_chunks(structs, chunks)
             if vi == 1 and (img is not None):
                 validlist.append(self.imglist[idx])
@@ -92,7 +93,7 @@ class ScitsrDataset(Dataset):
         idx = 0
         for st in structs:
             text = st["tex"].strip().replace(" ", "")
-            if text == "" or text == '$\\mathbf{}$':  # empty cell
+            if text == "" or text == '$\\mathbf{}$' or len(st["content"]) == 0:  # empty cell
                 continue
             st["id"] = idx
             news.append(st)
@@ -104,6 +105,7 @@ class ScitsrDataset(Dataset):
         structs = self.remove_empty_cell(structs)
         # Sanity check for labeling.
         if len(structs) != len(chunks) and self.params.labeling_sanity:
+            print('Fails sanity check')
             return 0
         for st in structs:
             id = st["id"]

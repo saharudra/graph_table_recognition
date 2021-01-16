@@ -4,7 +4,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/datatop_1/rudra/table_recognition/datasets/SciTSR',
+    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/table_graph_visualization/',
                         help='data directory')
 
     # Data processing arguments
@@ -16,7 +16,7 @@ def scitsr_params():
                         help='size of the image taken in by the model')
     parser.add_argument('--kernel_size', type=int, default=3,
                         help='size of the kernel for dilation or erosion')
-    parser.add_argument('--device', type=str, default='cuda',
+    parser.add_argument('--device', type=str, default='cpu',
                         help='device to run graph transform on, currently cpu')
     parser.add_argument('--graph_k', type=int, default=6,
                         help='K-value for KNN graph transform')
@@ -28,6 +28,8 @@ def scitsr_params():
                         help='sanity checking labeling when cell text is split.')
     parser.add_argument('--augment_chunk', type=bool, default=False, 
                         help='whether to jitter position of cell text bounding box')
+    parser.add_argument('--new_imglist', type=bool, default=False,
+                        help='whether to create a new imglist or use existing one if it exists')
 
     opt = parser.parse_args()
 
@@ -110,7 +112,7 @@ def train_params():
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
-    parser.add_argument('--device', type=str, default='cuda',
+    parser.add_argument('--device', type=str, default='cpu',
                         help='device to run the code on cuda | cpu')
 
     # Training type arguments
