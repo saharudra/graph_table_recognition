@@ -77,8 +77,8 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
         # plt.subplot(221)
         # plt.imshow(img)
         # plt.subplot(222)
-        # plt.scatter(x_imgpos_scatter, y_imgpos_scatter, c='red')
-        # plt.scatter(x_sampling_grid, y_sampling_grid, c='green')
+        # plt.scatter(x_imgpos_scatter, - y_imgpos_scatter, c='red')
+        # plt.scatter(x_sampling_grid, - y_sampling_grid, c='green')
         # plt.show()
         # import pdb; pdb.set_trace()
         
@@ -88,6 +88,7 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
         sampling_grid = sampling_grid.unsqueeze(0) 
         sampling_grid = sampling_grid.unsqueeze(0)
         cnnin = cnnout[i].unsqueeze(0)  # Single graph
+        import pdb; pdb.set_trace()
         sout = F.grid_sample(cnnin, sampling_grid, mode='bilinear', padding_mode='border')
         cnt+=nodenum[i]
         sout=sout.squeeze(0)
@@ -118,9 +119,11 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
             out = torch.cat((out,sample_out),0)
     return out
 
-img_params = img_model_params()
-print(img_params)
-img_model = ConvBaseGFTE(img_params)
+# img_params = img_model_params()
+# print(img_params)
+# img_model = ConvBaseGFTE(img_params)
+import torchvision.models as models
+img_model = models.resnet18()
 
 for idx, data in enumerate(train_loader):
     img, imgpos, nodenum, cell_wh = data.img, data.imgpos, data.nodenum, data.cell_wh

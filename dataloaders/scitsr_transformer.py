@@ -2,45 +2,32 @@ import random
 import cv2
 import numpy as np
 import os
-import codecs
 from shapely.geometry import Point, Polygon
 
 import torch
 from torch_geometric.data import Data, Dataset, DataLoader
 from torch_scatter import scatter_mean
-import torch_geometric.transforms as GT
 import math
 import json
 import csv
 
 from misc.args import scitsr_params
 
-def encode_text(ins, vob, max_len, default = " "):
-    out = []
-    sl = len(ins)
-    minl = min(sl, max_len)
-    for i in range(minl):
-        # GFTE replaces uppercase letters with blank space character
-        char = ins[i].lower()  # converting to lowercase
-        if char in vob:
-            out.append(vob[char])
-        else:
-            out.append(vob[default])
-    # Append default to make text length equal
-    if len(out)<=max_len:
-        out = out +[vob[default]]*(max_len-len(out))
-    return out
+"""
+SciTSR dataloader for transformer based table structure recognition.
+Graph is not being formed, position and image information is being passed 
+to the transformer.
+"""
 
-
-class ScitsrDataset(Dataset):
+class ScitsrDatasetSB(Dataset):
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
-        super(ScitsrDataset, self).__init__(params, transform, pre_transform)
+        super(ScitsrDatasetSB, self).__init__(params, transform, pre_transform)
 
         self.params = params
         self.root_path = os.path.join(self.params.data_dir, partition)
 
         # Create a list of images as a json file
-        self.jsonfile = os.path.join(self.root_path, 'imglist.json')
+        self.jsonfile = os.path.join(self.root_path, 'imglist_sb.json')
         if os.path.exists(self.jsonfile) and not self.params.new_imglist:
             with open(self.jsonfile, 'r') as rf:
                 self.imglist = json.load(rf)
@@ -52,12 +39,7 @@ class ScitsrDataset(Dataset):
                 json.dump(self.imglist, wf)
         
         self.img_size = self.params.img_size
-        self.kernel = np.ones((self.params.kernel_size, self.params.kernel_size), np.uint8)
 
-        self.graph_transform = GT.KNNGraph(k=self.params.graph_k)
-
-        self.vob = {x:ind for ind, x in enumerate(self.params.alphabet)}
-    
     @property
     def raw_file_names(self):
         return []
@@ -126,7 +108,6 @@ class ScitsrDataset(Dataset):
        
         structfn = os.path.join(self.root_path, "structure", os.path.splitext(os.path.basename(imgfn))[0] + ".json")
         chunkfn = os.path.join(self.root_path, "chunk", os.path.splitext(os.path.basename(imgfn))[0] + ".chunk")
-        # relfn = os.path.join(self.root_path, "rel", os.path.splitext(os.path.basename(imgfn))[0] + ".rel")
         imgfn = os.path.join(self.root_path, "img", os.path.splitext(os.path.basename(imgfn))[0] + ".png")
        
         if not os.path.exists(structfn) or not os.path.exists(chunkfn) or not os.path.exists(imgfn):
@@ -143,24 +124,8 @@ class ScitsrDataset(Dataset):
         if img is not None:
             # Using RGB image.
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            # TODO: Test with grayscale only
-            #  img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            if self.params.dilate:
-                img = cv2.dilate(img, self.kernel, iterations=1)
-            if self.params.erode:
-                img = cv2.erode(img, self.kernel, iterations=1) # To thicken lines and text..
             img = cv2.resize(img, (self.params.img_size, self.params.img_size), interpolation=cv2.INTER_AREA)
 
-        # with open(relfn, 'r') as f:
-        #     reader = csv.reader(f, delimiter='\t')
-        #     rels = list(reader)
-        
-        # for idx, rel in enumerate(rels):
-        #     rel[-1] = rel[-1][0]
-        #     rel = [int(x) for x in rel]
-        #     rels[idx] = rel
-
-        # return structs, chunks, img, rels
         return structs, chunks, img
     
     def __len__(self):
@@ -201,25 +166,16 @@ class ScitsrDataset(Dataset):
             chk["pos"][3] += random.normalvariate(0, 1)
 
     def get(self, idx):
-        # rels are only being used for optimal k check and not available in test set of SciTSR
-        # structs, chunks, img, rels = self.readlabel(idx)
         structs, chunks, img = self.readlabel(idx)
-        
+
         if self.params.augment_chunk:
             self.augmentation_chk(chunks)
 
         cl = self.cal_chk_limits(chunks)
-        
-        x, pos, tbpos, xtext, imgpos, cell_wh = [], [], [], [], [], []
-        plaintext = []
+
+        x, pos, tbpos, imgpos, cell_wh = [], [], [], [], []
         structs = self.remove_empty_cell(structs)
-        
-        # Sanity check for labeling.
-        # if len(structs) != len(chunks):
-        #     print("Err: len(struct) = {}; len(chunks) = {}".format(len(structs), len(chunks)))
-        #     print(self.imglist[idx])
-        #     exit(0)
-        
+
         for st in structs:
             id = st["id"]
             chk = chunks[id]
@@ -227,82 +183,67 @@ class ScitsrDataset(Dataset):
             x.append(xt)
             pos.append(xt[4:6])  # pos only takes the centroid of each cell text bounding box
             tbpos.append([st["start_row"], st["end_row"], st["start_col"], st["end_col"]])  # position information in the table to calculate label
-            xtext.append(encode_text(chk["text"], self.vob, self.params.text_encode_len))
-            plaintext.append(chk["text"].encode('utf-8'))
             imgpos.append([(1.0 - xt[5]) * 2 - 1.0, xt[4] * 2 - 1.0])
             cell_wh.append([xt[-2], xt[-1]])
 
         x = torch.FloatTensor(x)
         pos = torch.FloatTensor(pos)
         data = Data(x=x, pos=pos)
-        # import pdb; pdb.set_trace()
-        data = self.graph_transform(data.to(self.params.device))
 
-        y_row = self.cal_row_label(data, tbpos)
-        y_col = self.cal_col_label(data, tbpos)
-        # img in RGB format, not unsqueezing twice
+        y_row = self.cal_all_pair_row_label(data, tbpos)
+        y_col = self.cal_all_pair_col_label(data, tbpos)
+
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
-        # rels = torch.LongTensor(rels)
 
         data.y_row = torch.LongTensor(y_row)
         data.y_col = torch.LongTensor(y_col)
         data.img = img
-        # data.rels = rels
         data.imgpos = torch.FloatTensor(imgpos)
         data.cell_wh = torch.FloatTensor(cell_wh)
         data.nodenum = torch.LongTensor([len(structs)])
-        data.xtext = torch.LongTensor(xtext)
 
         return data
 
-    def cal_row_label(self, data, tbpos):  
-        edges = data.edge_index  
+    def cal_all_pair_row_label(self, data, tbpos):
         y = []
-        for i in range(edges.size()[1]):
-            y.append(self.if_same_row(edges[0, i], edges[1, i], tbpos))
+        for si in range(data.x.shape[0]):
+            for ei in range(si + 1, data.x.shape[0]):
+                y.append(self.is_same_row(si, ei, tbpos))
         return y
 
-    def cal_col_label(self, data, tbpos):
-        edges = data.edge_index
+    def cal_all_pair_col_label(self, data, tbpos):
         y = []
-        for i in range(edges.size()[1]):
-            y.append(self.if_same_col(edges[0, i], edges[1, i], tbpos))
+        for si in range(data.x.shape[0]):
+            for ei in range(si + 1, data.x.shape[0]):
+                y.append(self.is_same_col(si, ei, tbpos))
         return y
 
-    def if_same_row(self, si, ti, tbpos):
+    def is_same_row(self, si, ei, tbpos):
         ss, se = tbpos[si][0], tbpos[si][1]
-        ts, te = tbpos[ti][0], tbpos[ti][1]
-        if (ss >= ts and se <= te):
+        ts, te = tbpos[ei][0], tbpos[ei][1]
+        if (ss >= ts) and (se <= te):
             return 1
-        if (ts >= ss and te <= se):
-            return 1
-        return 0
-
-    def if_same_col(self, si, ti, tbpos):
-        ss, se = tbpos[si][2], tbpos[si][3]
-        ts, te = tbpos[ti][2], tbpos[ti][3]
-        if (ss >= ts and se <= te):
-            return 1
-        if (ts >= ss and te <= se):
+        if (ts >= ss) and (te <= se):
             return 1
         return 0
 
-    def if_same_cell(self):
-        pass
+    def is_same_col(self, si, ei, tbpos):
+        ss, se = tbpos[si][2], tbpos[ei][3]
+        ts, te = tbpos[ei][2], tbpos[ei][3]
+        if (ss >= ts) and (se <= te):
+            return 1
+        if (ts >= ss) and (te <= se):
+            return 1
+        return 0
 
-
-if __name__ == '__main__':
     
-    from misc.args import *
+if __name__ == '__main__':
 
+    from misc.args import *
+    
     params = scitsr_params()
-    print(params)
-    params.optimal_k_chk = True
-    print(params)
-    train_dataset = ScitsrDataset(params)
-    test_dataset = ScitsrDataset(params, partition='test')
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    train_dataset = ScitsrDatasetSB(params)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
 
     for idx, data in enumerate(train_loader):
         print(data)
