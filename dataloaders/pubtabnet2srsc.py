@@ -136,4 +136,3 @@ for annot in annotations:
     with open(json_filename, 'w') as jf:
         json.dump(annot, jf)
 
-    import pdb; pdb.set_trace()
