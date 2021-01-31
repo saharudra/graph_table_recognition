@@ -134,6 +134,6 @@ for annot in annotations:
     annot['html']['cells'] = cell_annotation
     json_filename = root + os.sep + annot['split'] + os.sep + annot['filename'].split('.')[0] + '.json'
     with open(json_filename, 'w') as jf:
-        jf.dump(annot)
+        json.dump(annot, jf)
 
     import pdb; pdb.set_trace()
