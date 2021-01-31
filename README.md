@@ -1,5 +1,20 @@
 ## Table Structure Recognition using Graph Neural Networks
 
+##### To-Dos:
+- [ ] Dataloaders
+    - [ ] S-A PubTabNet, SciTSR, ICDAR 2013
+    - [ ] S-B PubTabNet, SciTSR, ICDAR 2013
+- [ ] Baselines
+    - [ ] Vanilla GFTE multi-task version
+        - [ ] Train on SciTSR, test on ICDAR 2013
+        - [ ] Train on PubTabNet, test on ICDAR 2013
+    - [ ] GFTE with GAT multi-task version
+        - [ ] Train on SciTSR, test on ICDAR 2013
+        - [ ] Train on PubTabNet, test on ICDAR 2013
+    - [ ] Transformer multi-task version
+        - [ ] Train on SciTSR, test on ICDAR 2013
+        - [ ] Train on PubTabNet, test on ICDAR 2013
+ 
 #### Input:
 * Position Features of cell text bounding box
 * Text Features of cell text
@@ -30,9 +45,6 @@
 - [ ] Global self-attention
 - [ ] Multi-headed self-attention : https://atcold.github.io/pytorch-Deep-Learning/en/week12/12-3/
 - [ ] Attention augmented convolution
-
-##### To-Dos:
-- [ ] Create network architecture for versions
 
 #### Datasets
 * Training: SciTSR, Synthetic dataset

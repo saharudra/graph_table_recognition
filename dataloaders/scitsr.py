@@ -301,8 +301,8 @@ if __name__ == '__main__':
     print(params)
     train_dataset = ScitsrDataset(params)
     test_dataset = ScitsrDataset(params, partition='test')
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
     for idx, data in enumerate(train_loader):
         print(data)

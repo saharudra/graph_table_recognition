@@ -1,10 +1,23 @@
 import argparse
 
+def pubtabnet_parms():
+    parser = argparse.ArgumentParser(description="Arguments for prepairing PubTabNet table structure recognition dataset")
+
+    # Data arguments
+    parser.add_argument('--data_dir', type=str, default='/datatop_1/rudra/table_recognition/datasets/pubtabnet',
+                        help='data directory')
+    parser.add_argument('--json_file', type=str, default='PubTabNet_2.0.0.jsonl',
+                        help='Annotation file for all splits')
+
+    opt = parser.parse_args()
+
+    return opt
+
 def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/datatop_1/rudra/table_recognition/datasets/SciTSR',
+    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR',
                         help='data directory')
 
     # Data processing arguments

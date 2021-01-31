@@ -1,12 +1,16 @@
 # Convert structure information in PubTabNet dataset to start row, end row, start column and end column indexing.
 # start row (sr), end row (er), start column (sc), end column (ec) being 0-indexed.
+import os
 import json
 import cv2
 import matplotlib.pyplot as plt
 
+from misc.args import pubtabnet_parms
+
 # load json file
-root = '/Users/i23271/Downloads/table/datasets/PubTabNet/examples/'
-annotation_filename = root + 'PubTabNet_Examples.jsonl'
+params = pubtabnet_parms()
+root = params.data_dir
+annotation_filename = root + os.sep + params.json_file
 
 annotations = []
 with open(annotation_filename, 'r') as jaf:
@@ -16,7 +20,7 @@ with open(annotation_filename, 'r') as jaf:
 # Parsing list of annotations for each of the table
 for annot in annotations:
     # Load image to check outcome
-    img_filename = root + annot['filename']
+    img_filename = root + os.sep + annot['split'] + os.sep + annot['filename']
     img = cv2.cvtColor(cv2.imread(img_filename), cv2.COLOR_BGR2RGB)
     cell_structure = annot['html']['structure']['tokens']
     cell_annotation = annot['html']['cells']
@@ -124,5 +128,12 @@ for annot in annotations:
     #         import pdb; pdb.set_trace()
     # plt.imshow(img)
     # plt.show()
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     
+    # Save new annotation in it's corresponding split folder
+    annot['html']['cells'] = cell_annotation
+    json_filename = root + os.sep + annot['split'] + os.sep + annot['filename'].split('.')[0] + '.json'
+    with open(json_filename, 'w') as jf:
+        jf.dump(annot)
+
+    import pdb; pdb.set_trace()
