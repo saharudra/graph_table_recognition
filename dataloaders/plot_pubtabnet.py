@@ -49,7 +49,8 @@ for file in json_filelist:
     img_filename = os.path.join(root, file[:-4] + 'png')
     img = cv2.cvtColor(cv2.imread(img_filename), cv2.COLOR_BGR2RGB)
 
-    with open(file, 'r') as jf:
+    json_filename = os.path.join(root, file)
+    with open(json_filename, 'r') as jf:
         annot = json.load(jf)
     
     print(annot['cell_annotation'])
