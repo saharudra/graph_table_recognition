@@ -32,4 +32,7 @@ class PubTabNetDataset(Dataset):
         super(PubTabNetDataset, self).__init__(params, transform, pre_transform)
 
         self.params = params
-        self.root_path = os.path.join
+        self.root_path = os.path.join(self.params.data_dir, partition)
+
+        # Create a list of images in a json file
+        self.jsonfile = os.path.join

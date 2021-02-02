@@ -1,6 +1,7 @@
 import torch
 import os 
 import errno
+import numpy as np
 
 def mkdir_p(path):
     try:
@@ -19,3 +20,18 @@ def weights_init(m):
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+
+
+def pairwise_combinations(tensor):
+    # Numpy version for an array
+    row, col = tensor.shape
+    print(row, col) 
+    r, c = torch.triu_indices(row, col, 0)
+    out = torch.hstack((tensor[r], tensor[c]))
+    return out
+
+
+if __name__ == '__main__':
+    arr = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13, 14, 15]])
+    out = pairwise_combinations(arr)
+    print(out)
