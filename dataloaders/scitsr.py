@@ -172,6 +172,7 @@ class ScitsrDataset(Dataset):
         return [(chkp[0] + chkp[1]) / 2, (chkp[2] + chkp[3]) / 2]
 
     def cal_chk_limits(self, chunks):
+        import pdb; pdb.set_trace()
         x_min = min(chunks, key=lambda p: p["pos"][0])["pos"][0]
         x_max = max(chunks, key=lambda p: p["pos"][1])["pos"][1]
         y_min = min(chunks, key=lambda p: p["pos"][2])["pos"][2]

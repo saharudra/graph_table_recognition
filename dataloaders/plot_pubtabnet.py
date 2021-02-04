@@ -52,12 +52,14 @@ for file in json_filelist:
     json_filename = os.path.join(root, file)
     with open(json_filename, 'r') as jf:
         annot = json.load(jf)
-    
-    print(annot['cell_annotation'])
+        
+    cell_annotation = annot['html']['cells']
+    cell_structure = annot['html']['structure']['tokens']
+    print(cell_annotation)
     print('*' * 100)
-    pritn(annot['cell_structure'])
+    print(cell_structure)
     
-    for cell in annot['cell_annotation']:
+    for cell in cell_annotation:
         if 'bbox' in cell:
             bbox = cell['bbox']
             x0, y0, x1, y1 = bbox

@@ -8,7 +8,16 @@ def pubtabnet_parms():
                         help='data directory')
     parser.add_argument('--json_file', type=str, default='PubTabNet_2.0.0.jsonl',
                         help='Annotation file for all splits')
-
+    
+    parser.add_argument('--new_imglist', type=bool, default=True,
+                        help='whether to create a new imglist or use existing one if it exists')
+    parser.add_argument('--img_size', type=int, default=1024,
+                        help='size of the image taken in by the model')
+    parser.add_argument('--img_resize_mode', type=str, default='square',
+                        help='ways to resize the image. none | square | pad64 | crop')
+    parser.add_argument('--img_scale', type=int, default=0,
+                        help='ensure that the image is scaled up by at least this percent even if \
+                              min_dim doesnot require it.')
     opt = parser.parse_args()
 
     return opt
@@ -17,7 +26,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR',
+    parser.add_argument('--data_dir', type=str, default='/datatop_1/rudra/table_recognition/datasets/SciTSR',
                         help='data directory')
 
     # Data processing arguments
