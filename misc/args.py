@@ -18,6 +18,9 @@ def pubtabnet_parms():
     parser.add_argument('--img_scale', type=int, default=0,
                         help='ensure that the image is scaled up by at least this percent even if \
                               min_dim doesnot require it.')
+    parser.add_argument('--augment_chunk', type=bool, default=False, 
+                        help='whether to jitter position of cell text bounding box')
+                        
     opt = parser.parse_args()
 
     return opt

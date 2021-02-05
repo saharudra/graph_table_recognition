@@ -32,7 +32,6 @@ class PubTabNetDataset(Dataset):
     * Plot position features on image
     TODO: MCTS based sampling for row and col classification for pairs of cell-texts.
     """
-
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
           super(PubTabNetDataset, self).__init__(params, transform, pre_transform)
 
@@ -44,32 +43,32 @@ class PubTabNetDataset(Dataset):
           self.jsonfile = os.path.join(self.root_path, 'imglist.json')
           if os.path.exists(self.jsonfile) and not self.params.new_imglist:
                with open(self.jsonfile, 'r') as rf:
-               self.imglist = json.load(rf)
+                    self.imglist = json.load(rf)
           else:
                self.imglist = list(filter(lambda fn: fn.lower().endswith('.png') or fn.lower().endswith('.jpg'),
-                                          os.listdir(os.path.join(self.root_path, partition))))
+                                             os.listdir(os.path.join(self.root_path, partition))))
                self.imglist = self.check_all()
                with open(self.jsonfile, 'w+') as wf:
                     json.dump(self.imglist, wf)
           
           self.img_size = self.params.img_size
 
-     @property
-     def raw_file_names(self):
+    @property
+    def raw_file_names(self):
           return []
 
-     @property
-     def processed_file_names(self):
+    @property
+    def processed_file_names(self):
           return []
 
-     def read_structure(self):
+    def read_structure(self):
           return 
     
-     def reset(self):
+    def reset(self):
           pass
 
-     # remove empty cells
-     def remove_empty_cell(self, chunks):
+    # remove empty cells
+    def remove_empty_cell(self, chunks):
 
           new_chunks = []
 
@@ -81,7 +80,7 @@ class PubTabNetDataset(Dataset):
 
           return new_chunks
 
-     def readlabel(self, idx):
+    def readlabel(self, idx):
           """
           Returns: 
           :img: Resized image while mainitaining aspect ratio and padding with 0.
@@ -104,7 +103,7 @@ class PubTabNetDataset(Dataset):
           imgfn = os.path.join(os.path.join(self.root_path, self.partition),
                                os.path.splitext(os.path.basename(imgfn))[0] + '.png')
           
-          if not os.path.exists(chunkfn) os not os.path.exists(imgfn):
+          if not os.path.exists(chunkfn) or not os.path.exists(imgfn):
                print('Files not found: {}, {}'.format(chunkfn, imgfn))
                return
           
@@ -161,10 +160,10 @@ class PubTabNetDataset(Dataset):
           return img, chunks
 
 
-     def __len__(self):
+    def __len__(self):
           return len(self.imglist)
      
-     def cal_chk_limits(self, chunks):
+    def cal_chk_limits(self, chunks):
 
           x_min = min(chunks, key=lambda p: p['bbox'][0])['bbox'][0]
           y_min = min(chunks, key=lambda p: p['bbox'][1])['bbox'][1]
@@ -179,7 +178,7 @@ class PubTabNetDataset(Dataset):
 
           return [x_min, x_max, y_min, y_max, width, height, avhei]
 
-     def pos_feature(self, chk, cl):
+    def pos_feature(self, chk, cl):
 
           # Same as that of scitsr/icdar2013/... dataloaders as indexing has been changed.
           # See methods: cal_chk_limits, readlabel
@@ -194,14 +193,14 @@ class PubTabNetDataset(Dataset):
 
           return [x1, x2, y1, y2, center_x, center_y, width, height]
 
-     def augmentation_chk(self, chunks):
+    def augmentation_chk(self, chunks):
           for chk in chunks:
                chk["bbox"][0] += random.normalvariate(0, 1)
                chk["bbox"][1] += random.normalvariate(0, 1)
                chk["bbox"][2] += random.normalvariate(0, 1)
                chk["bbox"][3] += random.normalvariate(0, 1)
 
-     def cal_row_label(slef, tbpos):
+    def cal_row_label(slef, tbpos):
           """
           Calculating for all-pairs of cell-texts. This is for the transformer based
           architecture without sampling for loss calculation.
@@ -226,7 +225,7 @@ class PubTabNetDataset(Dataset):
 
           return y
 
-     def cal_col_label(self, data, tbpos):
+    def cal_col_label(self, data, tbpos):
           """
           Calculating for all-pairs of cell-texts. This is for the transformer based
           architecture without sampling for loss calculation.
@@ -251,7 +250,7 @@ class PubTabNetDataset(Dataset):
 
           return y
 
-     def get(self, idx):
+    def get(self, idx):
           img, chunks = self.readlabel(idx)
 
           if self.params.augment_chunk:
@@ -286,4 +285,20 @@ class PubTabNetDataset(Dataset):
           data.nodenum = torch.LongTensor([len(chunks)])
           
           return data
-       
+
+if __name__ == '__main__':
+
+     from misc.args import *
+
+     params = pubtabnet_parms()
+     print(params)
+     train_dataset = PubTabNetDataset(params)
+     val_dataset = PubTabNetDataset(params, partition='val')
+     test_dataset = PubTabNetDataset(params, partition='test')
+     train_loader = DataLoader(train_dataset, batch_size==1, shuffle=True)
+     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
+     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+
+     for idx, data in enumerate(train_loader):
+          print(data)
+          import pdb; pdb.set_trace()
