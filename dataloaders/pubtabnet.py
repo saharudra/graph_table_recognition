@@ -31,6 +31,7 @@ class PubTabNetDataset(Dataset):
     Sanity Checks:
     * Plot position features on image
     TODO: MCTS based sampling for row and col classification for pairs of cell-texts.
+    TODO: Batched modeling, see if nodenum is a viable way of doing so.
     """
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
           super(PubTabNetDataset, self).__init__(params, transform, pre_transform)
@@ -46,8 +47,7 @@ class PubTabNetDataset(Dataset):
                     self.imglist = json.load(rf)
           else:
                self.imglist = list(filter(lambda fn: fn.lower().endswith('.png') or fn.lower().endswith('.jpg'),
-                                             os.listdir(os.path.join(self.root_path, partition))))
-               self.imglist = self.check_all()
+                                             os.listdir(self.root_path)))
                with open(self.jsonfile, 'w+') as wf:
                     json.dump(self.imglist, wf)
           
@@ -98,10 +98,8 @@ class PubTabNetDataset(Dataset):
           """
           imgfn = self.imglist[idx]
 
-          chunkfn = os.path.join(os.path.join(self.root_path, self.partition), 
-                                 os.path.splitext(os.path.basename(imgfn))[0] + '.json')
-          imgfn = os.path.join(os.path.join(self.root_path, self.partition),
-                               os.path.splitext(os.path.basename(imgfn))[0] + '.png')
+          chunkfn = os.path.join(self.root_path, os.path.splitext(os.path.basename(imgfn))[0] + '.json')
+          imgfn = os.path.join(self.root_path, os.path.splitext(os.path.basename(imgfn))[0] + '.png')
           
           if not os.path.exists(chunkfn) or not os.path.exists(imgfn):
                print('Files not found: {}, {}'.format(chunkfn, imgfn))
@@ -171,12 +169,12 @@ class PubTabNetDataset(Dataset):
           y_max = max(chunks, key=lambda p: p['bbox'][3])['bbox'][3]
           hlist = [p['bbox'][3] - p['bbox'][1] for p in chunks]
           avg_hei = sum(hlist) / len(hlist)
-          width = x_max - x_min + 2 * avhei
-          height = y_max - y_min + 0.5 * 2 * avhei
+          width = x_max - x_min + 2 * avg_hei
+          height = y_max - y_min + 0.5 * 2 * avg_hei
           # Maintain position features index similar to scitsr/icdar2013/... dataloader
           # for carryign out transfer-learning experiments.
 
-          return [x_min, x_max, y_min, y_max, width, height, avhei]
+          return [x_min, x_max, y_min, y_max, width, height, avg_hei]
 
     def pos_feature(self, chk, cl):
 
@@ -225,7 +223,7 @@ class PubTabNetDataset(Dataset):
 
           return y
 
-    def cal_col_label(self, data, tbpos):
+    def cal_col_label(self, tbpos):
           """
           Calculating for all-pairs of cell-texts. This is for the transformer based
           architecture without sampling for loss calculation.
@@ -252,6 +250,7 @@ class PubTabNetDataset(Dataset):
 
     def get(self, idx):
           img, chunks = self.readlabel(idx)
+          img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
 
           if self.params.augment_chunk:
                self.augmentation_chk(chunks)
@@ -295,7 +294,7 @@ if __name__ == '__main__':
      train_dataset = PubTabNetDataset(params)
      val_dataset = PubTabNetDataset(params, partition='val')
      test_dataset = PubTabNetDataset(params, partition='test')
-     train_loader = DataLoader(train_dataset, batch_size==1, shuffle=True)
+     train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
      val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
      test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
