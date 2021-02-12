@@ -12,14 +12,14 @@ import json
 import csv
 
 from misc.args import scitsr_params
-
-"""
-SciTSR dataloader for transformer based table structure recognition.
-Graph is not being formed, position and image information is being passed 
-to the transformer.
-"""
+from ops.utils import resize_image
 
 class ScitsrDatasetSB(Dataset):
+    """
+    SciTSR dataloader for transformer based table structure recognition.
+    Graph is not being formed, position and image information is being passed 
+    to the transformer.
+    """
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
         super(ScitsrDatasetSB, self).__init__(params, transform, pre_transform)
 
@@ -120,11 +120,53 @@ class ScitsrDatasetSB(Dataset):
             print(chunkfn)
         with open(structfn, 'r') as f:
             structs = json.load(f)['cells']
-        img = cv2.imread(imgfn)
+        img = cv2.cvtColor(cv2.imread(imgfn), cv2.COLOR_BGR2RGB)
         if img is not None:
             # Using RGB image.
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img = cv2.resize(img, (self.params.img_size, self.params.img_size), interpolation=cv2.INTER_AREA)
+            h, w, c = img.shape
+            # img = cv2.resize(img, (self.params.img_size, self.params.img_size), interpolation=cv2.INTER_AREA)
+            img, window, scale, padding, crop = resize_image(img, min_dim=self.params.img_size, max_dim=self.params.img_size,
+                                                                min_scale=self.params.img_scale)
+            h_n, w_n, c_n = img.shape
+
+            if w > h:
+                    # width > height, offset added in height or y direction
+                    # scale bbox in x direction directly
+                    offset = (self.params.img_size - math.floor((self.params.img_size * h) / w)) / 2
+               
+            elif h > w:
+                # similarly if height > width, offset added in width or x direction
+                # scale bbox in y direction directly
+                offset = (self.params.img_size - math.floor((self.params.img_size * w) / h)) / 2
+            
+            else:
+                offset = 0
+
+            for cell in chunks:
+                if 'pos' in cell:
+                    bbox = cell['pos']
+                    x0, x1, y0, y1 = bbox
+
+                    if w > h:
+                              x0 = int((x0 / w) * w_n)
+                              x1 = int((x1 / w) * w_n)
+                              y0 = int( offset + ((y0 / h) * math.floor((self.params.img_size * h) / w)) )
+                              y1 = int( offset + ((y1 / h) * math.floor((self.params.img_size * h) / w)) )
+
+                    elif h > w:
+                        x0 = int( offset + ((x0 / w) * math.floor((self.params.img_size * w) / h)) )
+                        x1 = int(offset + ((x1 / w ) * math.floor((self.params.img_size * w) / h)) )
+                        y0 = int((y0 / h) * h_n)
+                        y1 = int((y1 / h) * h_n)
+                         
+                    else:
+                        x0 = int((x0 / w) * w_n)
+                        x1 = int((x1 / w) * w_n)
+                        y0 = int((y0 / h) * h_n)
+                        y1 = int((y1 / h) * h_n)
+
+                    # Changing bbox indexs to match scitsr/icdar2013/... dataloaders.
+                    cell['pos'] = [x0, x1, y0, y1]
 
         return structs, chunks, img
     

@@ -37,8 +37,13 @@ def scitsr_params():
                         help='characters that are being encoded')
     parser.add_argument('--text_encode_len', type=int, default=15,
                         help='max length for encoding text')
-    parser.add_argument('--img_size', type=int, default=256,
+    parser.add_argument('--img_size', type=int, default=1024,
                         help='size of the image taken in by the model')
+    parser.add_argument('--img_resize_mode', type=str, default='square',
+                        help='ways to resize the image. none | square | pad64 | crop')
+    parser.add_argument('--img_scale', type=int, default=0,
+                        help='ensure that the image is scaled up by at least this percent even if \
+                              min_dim doesnot require it.')
     parser.add_argument('--kernel_size', type=int, default=3,
                         help='size of the kernel for dilation or erosion')
     parser.add_argument('--device', type=str, default='cpu',
