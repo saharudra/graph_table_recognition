@@ -15,34 +15,43 @@ from torch_geometric.data import DataLoader
 import os
 import json
 import cv2
+import numpy as np
 import math
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
+from ops.utils import resize_image
 from misc.args import *
+from dataloaders.scitsr import ScitsrDataset
 from dataloaders.scitsr_transformer import ScitsrDatasetSB
+from dataloaders.pubtabnet import PubTabNetDataset
 
-params = scitsr_params()
-print(params)
-
-train_dataset = ScitsrDatasetSB(params)
-train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
 
 """
 Plot position features for scitsr dataloader with kNN graph transformation
 """
+# params = scitsr_params()
+# print(params)
+# train_dataset = ScitsrDataset(params)
+# train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
 # for idx, data in enumerate(train_loader):
-#     pos, img, imgpos, edge_index = data.pos, data.img, data.imgpos, data.edge_index
+#     pos, img, imgpos, edge_index, img_orig = data.pos, data.img, data.imgpos, data.edge_index, data.img_orig
 #     print("Shape of img prior squeeze: {}".format(img.shape))
 #     img = torch.squeeze(img, dim=0)
+#     img_orig = torch.squeeze(img_orig, dim=0)
 #     print("Shape of img after squeeze: {}".format(img.shape))
 #     print("Shape of imgpos: {}".format(imgpos.shape))
 #     imgpos = imgpos.numpy()
 #     pos = pos.numpy()
 #     img = img.permute(1, 2, 0).numpy()
+#     img_orig = img_orig.permute(1, 2, 0).numpy()
+#     img_resize_ar, window, scale, padding, crop = resize_image(img_orig, min_dim=1024, max_dim=1024,
+#                                                             min_scale=0) 
+
 #     # Scatter plot pos features and imgpos features
-#     x_scatter = pos[:, 0] * 256
+#     x_scatter = pos[:, 0] * 1024
 #     # Flip along y axis
-#     y_scatter = 256 -  pos[:, 1] * 256
+#     y_scatter = 1024 -  pos[:, 1] * 1024
 #     # x_imgpos_scatter = imgpos[:, 1]
 #     # y_imgpos_scatter = imgpos[:, 0] * 1.0
 #     # plt.subplot(221)
@@ -52,28 +61,44 @@ Plot position features for scitsr dataloader with kNN graph transformation
 #     # plot image and overlay scatter plot
 #     plt.scatter(x_scatter, y_scatter, c='green')
 #     plt.imshow(img)
+#     plt.show()
+
+#     h, w, c = img_orig.shape
+#     x_scatter_orig = pos[:, 0] * w
+#     y_scatter_orig = h - pos[:, 1] * h
+#     plt.imshow(img_orig)
+#     plt.scatter(x_scatter_orig, y_scatter_orig, c='red')
+#     plt.show()
+
+#     h_r, w_r, c_r = img_resize_ar.shape
+
+#     if w > h:
+#         # width > height, offset added in height or y direction
+#         # scale bbox in x direction directly
+#         offset = (1024 - math.floor((1024 * h) / w)) / 2
     
-#     # plot edges and save the images
-#     edge_index = edge_index.numpy()
-#     edge_count = 0
-#     for edge in range(edge_index.shape[1]):
-#         edge_nodes = edge_index[:, edge]
-#         start_node_x = pos[edge_nodes[1], 0] * 256
-#         start_node_y = 256 - pos[edge_nodes[1], 1] * 256
-#         end_node_x = pos[edge_nodes[0], 0] * 256
-#         end_node_y = 256 - pos[edge_nodes[0], 1] * 256
-#         print('Start Node x: {}'.format(start_node_x))
-#         print('Start Node y: {}'.format(start_node_y))
-#         plt.plot([start_node_x, start_node_y], [end_node_x, end_node_y], 'ro-')
-#         plt.scatter(start_node_x, start_node_y, c='red')
-#         plt.scatter(end_node_x, end_node_y, c='black')
-#         edge_count += 1
-#         if edge_count % params.graph_k == 0:
-#             # plt.scatter(start_node_x, start_node_y)
-#             print('Start Node x: {}'.format(start_node_x))
-#             print('Start Node y: {}'.format(start_node_y))
-#             plt.show()
-#         plt.scatter(x_scatter, y_scatter, c='green')
+#     elif h > w:
+#         # similarly if height > width, offset added in width or x direction
+#         # scale bbox in y direction directly
+#         offset = (1024 - math.floor((1024 * w) / h)) / 2
+               
+#     else:
+#         offset = 0
+    
+#     if w > h:
+#         y_scatter_ar = 1024 - pos[:, 1] * (1024 -  2 * offset) - offset
+#         p
+#         x_scatter_ar = pos[:, 0] * 1024
+#     elif h > w:
+#         x_scatter_ar = pos[:, 0] * (1024 - 2 * offset) - offset
+#         y_scatter_ar = 1024 -  pos[:, 1] * 1024
+#     else:
+#         x_scatter_ar = pos[:, 0] * 1024
+#         y_scatter_ar = 1024 -  pos[:, 1] * 1024
+
+#     plt.imshow(img_resize_ar)
+#     plt.scatter(x_scatter_ar, y_scatter_ar, c='blue')
+#     plt.show()
 
 #     import pdb; pdb.set_trace()
 
@@ -151,4 +176,62 @@ Plot bounding box coordinates from original image onto resized image for PubTabN
 Plot position features for scitsr dataloader for the transformer based model
 """
 
+params = scitsr_params()
+print(params)
+train_dataset = ScitsrDatasetSB(params)
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
+
+for idx, data in enumerate(train_loader):
+    pos, imgpos, img = data.pos, data.imgpos, data.img
+    rescale_params = data.rescale
+    rescale_params = rescale_params.numpy()
+    img = torch.squeeze(img, dim=0)
+    # h_o, w_o, h_n, w_n = rescale_params
+    imgpos = imgpos.numpy()
+    pos = pos.numpy()
+    img = img.permute(1, 2, 0).numpy()
+    # chk_limit = chk_limit.numpy()
+    
+    x_scatter = pos[:, 0] * 1024
+    y_scatter = pos[:, 1] * 1024
+
+    # plot image and overlay scatter plot
+    fig, ax = plt.subplots()
+    ax.scatter(x_scatter, y_scatter, c='green')
+    ax.imshow(img)
+    # rect = Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=1, edgecolor='r', facecolor='none')
+    # ax.add_patch(rect)
+    plt.show()
+    import pdb; pdb.set_trace()
+
+
+"""
+Plot position features for pubtabnet dataloader for the transformer based model
+"""
+# params = pubtabnet_parms()
+# print(params)
+# val_dataset = PubTabNetDataset(params, partition='val')
+# val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
+
+# for idx, data in enumerate(val_loader):
+#     pos, imgpos, img, cl = data.pos, data.imgpos, data.img, data.cl
+#     img = img[0]
+#     c, w, h = img.shape
+#     imgpos = imgpos.numpy()
+#     pos = pos.numpy()
+#     cl = cl.numpy()
+#     x_min, x_max, y_min, y_max, width, height, avhei = cl
+#     print(cl)
+#     img = img.permute(1, 2, 0).numpy() 
+#     print(img.dtype)
+#     x_scatter = pos[:, 0] * w
+#     y_scatter = pos[:, 1] * h
+
+#     fig, ax = plt.subplots()
+#     ax.scatter(x_scatter, y_scatter, c='green')
+#     ax.imshow(img)
+#     rect = Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=1, edgecolor='r', facecolor='none')
+#     ax.add_patch(rect)
+#     plt.show()
+#     import pdb; pdb.set_trace()
 

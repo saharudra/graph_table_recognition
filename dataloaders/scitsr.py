@@ -149,7 +149,7 @@ class ScitsrDataset(Dataset):
                 img = cv2.dilate(img, self.kernel, iterations=1)
             if self.params.erode:
                 img = cv2.erode(img, self.kernel, iterations=1) # To thicken lines and text..
-            img = cv2.resize(img, (self.params.img_size, self.params.img_size), interpolation=cv2.INTER_AREA)
+            img_resized = cv2.resize(img, (self.params.img_size, self.params.img_size), interpolation=cv2.INTER_AREA)
 
         # with open(relfn, 'r') as f:
         #     reader = csv.reader(f, delimiter='\t')
@@ -161,7 +161,7 @@ class ScitsrDataset(Dataset):
         #     rels[idx] = rel
 
         # return structs, chunks, img, rels
-        return structs, chunks, img
+        return structs, chunks, img_resized, img
     
     def __len__(self):
         return len(self.imglist)
@@ -172,7 +172,6 @@ class ScitsrDataset(Dataset):
         return [(chkp[0] + chkp[1]) / 2, (chkp[2] + chkp[3]) / 2]
 
     def cal_chk_limits(self, chunks):
-        import pdb; pdb.set_trace()
         x_min = min(chunks, key=lambda p: p["pos"][0])["pos"][0]
         x_max = max(chunks, key=lambda p: p["pos"][1])["pos"][1]
         y_min = min(chunks, key=lambda p: p["pos"][2])["pos"][2]
@@ -186,13 +185,13 @@ class ScitsrDataset(Dataset):
     def pos_feature(self, chk, cl):
         x1 = (chk["pos"][0] - cl[0] + cl[6]) / cl[4]
         x2 = (chk["pos"][1] - cl[0] + cl[6]) / cl[4]
-        x3 = (chk["pos"][2] - cl[2] + 0.5 * cl[6]) / cl[5]
-        x4 = (chk["pos"][3] - cl[2] + 0.5 * cl[6]) / cl[5]
-        x5 = (x1 + x2) * 0.5  
-        x6 = (x3 + x4) * 0.5
-        x7 = x2 - x1  
-        x8 = x4 - x3  
-        return [x1, x2, x3, x4, x5, x6, x7, x8]
+        y1 = (chk["pos"][2] - cl[2] + 0.5 * cl[6]) / cl[5]
+        y2   = (chk["pos"][3] - cl[2] + 0.5 * cl[6]) / cl[5]
+        center_x = (x1 + x2) * 0.5  
+        center_y = (y1 + y2) * 0.5
+        width = x2 - x1  
+        height = y2 - y1
+        return [x1, x2, y1, y2, center_x, center_y, width, height]
 
     def augmentation_chk(self, chunks):
         for chk in chunks:
@@ -204,7 +203,7 @@ class ScitsrDataset(Dataset):
     def get(self, idx):
         # rels are only being used for optimal k check and not available in test set of SciTSR
         # structs, chunks, img, rels = self.readlabel(idx)
-        structs, chunks, img = self.readlabel(idx)
+        structs, chunks, img, img_orig = self.readlabel(idx)
         
         if self.params.augment_chunk:
             self.augmentation_chk(chunks)
@@ -243,11 +242,13 @@ class ScitsrDataset(Dataset):
         y_col = self.cal_col_label(data, tbpos)
         # img in RGB format, not unsqueezing twice
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
+        img_orig = torch.FloatTensor(img_orig / 255.0).permute(2, 0, 1).unsqueeze(0)
         # rels = torch.LongTensor(rels)
 
         data.y_row = torch.LongTensor(y_row)
         data.y_col = torch.LongTensor(y_col)
         data.img = img
+        data.img_orig = img_orig
         # data.rels = rels
         data.imgpos = torch.FloatTensor(imgpos)
         data.cell_wh = torch.FloatTensor(cell_wh)

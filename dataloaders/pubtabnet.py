@@ -31,7 +31,7 @@ class PubTabNetDataset(Dataset):
     Sanity Checks:
     * Plot position features on image
     TODO: MCTS based sampling for row and col classification for pairs of cell-texts.
-    TODO: Batched modeling, see if nodenum is a viable way of doing so.
+    TODO: Batched modeling, see if data.nodenum is a viable way of doing so.
     """
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
           super(PubTabNetDataset, self).__init__(params, transform, pre_transform)
@@ -112,7 +112,7 @@ class PubTabNetDataset(Dataset):
           if img is not None:
                h, w, c = img.shape
                img, window, scale, padding, crop = resize_image(img, min_dim=self.params.img_size, max_dim=self.params.img_size,
-                                                                min_scale=self.params.img_scale)
+                                                            min_scale=self.params.img_scale)
                h_n, w_n, c_n = img.shape
 
                if w > h:
@@ -154,7 +154,6 @@ class PubTabNetDataset(Dataset):
 
                          # Changing bbox indexs to match scitsr/icdar2013/... dataloaders.
                          cell['bbox'] = [x0, x1, y0, y1]
-          
           return img, chunks
 
 
@@ -164,10 +163,10 @@ class PubTabNetDataset(Dataset):
     def cal_chk_limits(self, chunks):
 
           x_min = min(chunks, key=lambda p: p['bbox'][0])['bbox'][0]
-          y_min = min(chunks, key=lambda p: p['bbox'][1])['bbox'][1]
-          x_max = max(chunks, key=lambda p: p['bbox'][2])['bbox'][2]
+          x_max = max(chunks, key=lambda p: p['bbox'][1])['bbox'][1]
+          y_min = min(chunks, key=lambda p: p['bbox'][2])['bbox'][2]
           y_max = max(chunks, key=lambda p: p['bbox'][3])['bbox'][3]
-          hlist = [p['bbox'][3] - p['bbox'][1] for p in chunks]
+          hlist = [p['bbox'][3] - p['bbox'][2] for p in chunks]
           avg_hei = sum(hlist) / len(hlist)
           width = x_max - x_min + 2 * avg_hei
           height = y_max - y_min + 0.5 * 2 * avg_hei
@@ -180,10 +179,10 @@ class PubTabNetDataset(Dataset):
 
           # Same as that of scitsr/icdar2013/... dataloaders as indexing has been changed.
           # See methods: cal_chk_limits, readlabel
-          x1 = (chk["bbox"][0] - cl[0] + cl[6]) / cl[4]
-          x2 = (chk["bbox"][1] - cl[0] + cl[6]) / cl[4]
-          y1 = (chk["bbox"][2] - cl[2] + 0.5 * cl[6]) / cl[5]
-          y2 = (chk["bbox"][3] - cl[2] + 0.5 * cl[6]) / cl[5]
+          x1 = chk["bbox"][0] / self.params.img_size
+          x2 = chk["bbox"][1] / self.params.img_size
+          y1 = chk["bbox"][2] / self.params.img_size
+          y2 = chk["bbox"][3] / self.params.img_size
           center_x = (x1 + x2) * 0.5  
           center_y = (y1 + y2) * 0.5
           width = x2 - x1  
@@ -266,7 +265,10 @@ class PubTabNetDataset(Dataset):
                x.append(xt)
                pos.append(xt[4:6])
                tbpos.append([chunk['start_row'], chunk['end_row'], chunk['start_col'], chunk['end_col']])
-               imgpos.append([(1.0 - xt[5]) * 2 - 1.0, xt[4] * 2 - 1.0])
+               # Shape of grid for grid_sample is in height * width whereas we are treating images as w * h
+               # switch x and y axis for imgpos
+               # Also, scale and shift pos from [0, 1] to [-1, 1] for grid_sample
+               imgpos.append([xt[5] * 2 - 1.0, xt[4] * 2 - 1.0])
                cell_wh.append([xt[-2], xt[-1]])
 
           x = torch.FloatTensor(x)
@@ -282,6 +284,7 @@ class PubTabNetDataset(Dataset):
           data.imgpos = torch.FloatTensor(imgpos)
           data.cell_wh = torch.FloatTensor(cell_wh)
           data.nodenum = torch.LongTensor([len(chunks)])
+          data.cl = torch.FloatTensor(cl)
           
           return data
 
@@ -291,13 +294,13 @@ if __name__ == '__main__':
 
      params = pubtabnet_parms()
      print(params)
-     train_dataset = PubTabNetDataset(params)
+     # train_dataset = PubTabNetDataset(params)
      val_dataset = PubTabNetDataset(params, partition='val')
-     test_dataset = PubTabNetDataset(params, partition='test')
-     train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
+     # test_dataset = PubTabNetDataset(params, partition='test') 
+     # train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
      val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
-     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+     # test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-     for idx, data in enumerate(train_loader):
+     for idx, data in enumerate(val_loader):
           print(data)
           import pdb; pdb.set_trace()

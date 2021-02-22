@@ -13,6 +13,8 @@ import csv
 
 from misc.args import scitsr_params
 from ops.utils import resize_image
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 class ScitsrDatasetSB(Dataset):
     """
@@ -109,7 +111,7 @@ class ScitsrDatasetSB(Dataset):
         structfn = os.path.join(self.root_path, "structure", os.path.splitext(os.path.basename(imgfn))[0] + ".json")
         chunkfn = os.path.join(self.root_path, "chunk", os.path.splitext(os.path.basename(imgfn))[0] + ".chunk")
         imgfn = os.path.join(self.root_path, "img", os.path.splitext(os.path.basename(imgfn))[0] + ".png")
-       
+        
         if not os.path.exists(structfn) or not os.path.exists(chunkfn) or not os.path.exists(imgfn):
             print("can't find files.")
             return
@@ -120,55 +122,30 @@ class ScitsrDatasetSB(Dataset):
             print(chunkfn)
         with open(structfn, 'r') as f:
             structs = json.load(f)['cells']
+        # print(os.stat(imgfn).st_size == 0)
         img = cv2.cvtColor(cv2.imread(imgfn), cv2.COLOR_BGR2RGB)
         if img is not None:
-            # Using RGB image.
             h, w, c = img.shape
-            # img = cv2.resize(img, (self.params.img_size, self.params.img_size), interpolation=cv2.INTER_AREA)
             img, window, scale, padding, crop = resize_image(img, min_dim=self.params.img_size, max_dim=self.params.img_size,
-                                                                min_scale=self.params.img_scale)
+                                                            min_scale=self.params.img_scale)
             h_n, w_n, c_n = img.shape
 
             if w > h:
-                    # width > height, offset added in height or y direction
-                    # scale bbox in x direction directly
-                    offset = (self.params.img_size - math.floor((self.params.img_size * h) / w)) / 2
+                # width > height, offset added in height or y direction
+                # scale bbox in x direction directly
+                offset = (self.params.img_size - math.floor((self.params.img_size * h) / w)) / 2
                
             elif h > w:
                 # similarly if height > width, offset added in width or x direction
                 # scale bbox in y direction directly
                 offset = (self.params.img_size - math.floor((self.params.img_size * w) / h)) / 2
-            
+               
             else:
                 offset = 0
 
-            for cell in chunks:
-                if 'pos' in cell:
-                    bbox = cell['pos']
-                    x0, x1, y0, y1 = bbox
+            rescale_params = [h, w, h_n, w_n, offset]
 
-                    if w > h:
-                              x0 = int((x0 / w) * w_n)
-                              x1 = int((x1 / w) * w_n)
-                              y0 = int( offset + ((y0 / h) * math.floor((self.params.img_size * h) / w)) )
-                              y1 = int( offset + ((y1 / h) * math.floor((self.params.img_size * h) / w)) )
-
-                    elif h > w:
-                        x0 = int( offset + ((x0 / w) * math.floor((self.params.img_size * w) / h)) )
-                        x1 = int(offset + ((x1 / w ) * math.floor((self.params.img_size * w) / h)) )
-                        y0 = int((y0 / h) * h_n)
-                        y1 = int((y1 / h) * h_n)
-                         
-                    else:
-                        x0 = int((x0 / w) * w_n)
-                        x1 = int((x1 / w) * w_n)
-                        y0 = int((y0 / h) * h_n)
-                        y1 = int((y1 / h) * h_n)
-
-                    # Changing bbox indexs to match scitsr/icdar2013/... dataloaders.
-                    cell['pos'] = [x0, x1, y0, y1]
-
-        return structs, chunks, img
+        return structs, chunks, img, rescale_params
     
     def __len__(self):
         return len(self.imglist)
@@ -192,13 +169,13 @@ class ScitsrDatasetSB(Dataset):
     def pos_feature(self, chk, cl):
         x1 = (chk["pos"][0] - cl[0] + cl[6]) / cl[4]
         x2 = (chk["pos"][1] - cl[0] + cl[6]) / cl[4]
-        x3 = (chk["pos"][2] - cl[2] + 0.5 * cl[6]) / cl[5]
-        x4 = (chk["pos"][3] - cl[2] + 0.5 * cl[6]) / cl[5]
-        x5 = (x1 + x2) * 0.5  
-        x6 = (x3 + x4) * 0.5
-        x7 = x2 - x1  
-        x8 = x4 - x3  
-        return [x1, x2, x3, x4, x5, x6, x7, x8]
+        y1 = (chk["pos"][2] - cl[2] + 0.5 * cl[6]) / cl[5]
+        y2   = (chk["pos"][3] - cl[2] + 0.5 * cl[6]) / cl[5]
+        center_x = (x1 + x2) * 0.5  
+        center_y = (y1 + y2) * 0.5
+        width = x2 - x1  
+        height = y2 - y1
+        return [x1, x2, y1, y2, center_x, center_y, width, height]
 
     def augmentation_chk(self, chunks):
         for chk in chunks:
@@ -207,26 +184,58 @@ class ScitsrDatasetSB(Dataset):
             chk["pos"][2] += random.normalvariate(0, 1)
             chk["pos"][3] += random.normalvariate(0, 1)
 
+    def transform_pos_features(self, xt, rescale_params):
+        h, w, h_n, w_n, offset = rescale_params
+        x1, x2, y1, y2, center_x, center_y, width, height = xt
+
+        if w > h:
+            y1 = (self.params.img_size - y1 * (self.params.img_size - 2 * offset) - offset) / self.params.img_size
+            y2 = (self.params.img_size - y2 * (self.params.img_size - 2 * offset) - offset) / self.params.img_size
+            center_y = (y1 + y2) * 0.5
+
+        elif h > w:
+            x1 = (x1 * (self.params.img_size - 2 * offset) - offset) / self.params.img_size
+            x2 = (x2 * (self.params.img_size - 2 * offset) - offset) / self.params.img_size
+            center_x = (x1 + x2) * 0.5
+        else:
+            y1 = 1 - y1
+            y2 = 1 - y2
+            center_y = (y1 + y2) * 0.5
+
+        xt = [x1, x2, y1, y2, center_x, center_y, width, height]
+
+        return xt
+
     def get(self, idx):
-        structs, chunks, img = self.readlabel(idx)
+        # structs, chunks, img, scaling_params = self.readlabel(idx)
+        structs, chunks, img, rescale_params = self.readlabel(idx)
 
         if self.params.augment_chunk:
             self.augmentation_chk(chunks)
 
         cl = self.cal_chk_limits(chunks)
 
+        # Transform scale of bounding boxes
+        # SciTSR has bounding box information w.r.t the pdf but doesn't have the exact location
+        # on the pdf. Transform x_min and y_min to 0, 0.
+        # chunks = self.transform_chk_bbox(chunks, cl, scaling_params)
+        # cl = self.cal_chk_limits(chunks)
+        # print(cl)
         x, pos, tbpos, imgpos, cell_wh = [], [], [], [], []
+        # offset = []
         structs = self.remove_empty_cell(structs)
 
         for st in structs:
             id = st["id"]
             chk = chunks[id]
             xt = self.pos_feature(chk, cl)
+            xt = self.transform_pos_features(xt, rescale_params)
             x.append(xt)
             pos.append(xt[4:6])  # pos only takes the centroid of each cell text bounding box
             tbpos.append([st["start_row"], st["end_row"], st["start_col"], st["end_col"]])  # position information in the table to calculate label
             imgpos.append([(1.0 - xt[5]) * 2 - 1.0, xt[4] * 2 - 1.0])
             cell_wh.append([xt[-2], xt[-1]])
+            # offset.append(chk['offset'])
 
         x = torch.FloatTensor(x)
         pos = torch.FloatTensor(pos)
@@ -286,6 +295,7 @@ if __name__ == '__main__':
     params = scitsr_params()
     train_dataset = ScitsrDatasetSB(params)
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    print(params)
 
     for idx, data in enumerate(train_loader):
         print(data)
