@@ -126,6 +126,7 @@ def train(model, optimizer, train_loader, loss_criteria):
 
     for idx, data in enumerate(train_loader):
         # Perform single train step
+        optimizer.zero_grad()
         data = data.to(DEVICE)
         row_pred = model(data)
         row_loss = loss_function(row_pred, data.y_row, loss_criteria)

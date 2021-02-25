@@ -90,7 +90,7 @@ def main(config):
     # Outer train loop
     print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
-        train_loss = train(model, optimizer, train_loader, loss_criteria)
+        train_loss, row_loss, col_loss = train(model, optimizer, train_loader, loss_criteria, trainer_params)
         print("Epoch: {}, Overall Loss: {}".format(epoch, train_loss))
         
         # Log information
@@ -127,11 +127,13 @@ def main(config):
     print("Best validation accuracy: {}, in epoch: {}".format(best_accuracy, best_epoch))
 
 
-def train(model, optimizer, train_loader, loss_criteria):
+def train(model, optimizer, train_loader, loss_criteria, trainer_params):
     # Train loop for a batch
     model.train()
 
     epoch_loss = 0.0
+    row_loss = 0.0
+    col_loss = 0.0
 
     for idx, data in enumerate(train_loader):
         # Perform single train step
@@ -140,15 +142,43 @@ def train(model, optimizer, train_loader, loss_criteria):
         row_pred, col_pred = model(data)
         row_loss = loss_function(row_pred, data.y_row, loss_criteria)
         col_loss = loss_function(col_pred, data.y_col, loss_criteria)
+        # Overall loss
         loss = row_loss + col_loss
+        loss.backward()
+
+        # Accumulate gradients for training stability
+        if (idx + 1) % trainer_params.optimizer_accu_steps == 0:
+            optimizer.step()
+            optimizer.zero_grad()
+        
+        # Aggregate losses
+        epoch_loss += loss.item()
+        row_loss += row_loss.item()
+        col_loss += col_loss.item()
+    
+    epoch_loss /= len(train_loader.dataset)
+    row_loss /= len(train_loader.dataset)
+    col_loss /= len(train_loader.dataset)
+
+    return epoch_loss, row_loss, col_loss
 
 
-def eval():
-    pass
+def eval(model, val_loader, loss_criteria):
+    # Eval loop 
+    model.eval()
+
+    val_loss = 0.0
+    row_loss = 0.0
+    col_loss = 0.0
+
+    # Calculate precision, recall and F1 score here
 
 
-def loss_function():
-    pass
+def loss_function(pred, target, loss_criteria):
+    
+    loss = loss_criteria(pred, target)
+
+    return loss
 
 
 if __name__ == '__main__':

@@ -205,6 +205,8 @@ def trainer_params():
 
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='optimizer to use: adam | adadelta | rmsprop')
+    parser.add_argument('--optimizer_accu_steps', type=int, default=64,
+                        help='number of examples to accumulate gradients for')
     parser.add_argument('--beta1', type=float, default=0.5,
                         help='beta1 for adam optimizer')
     parser.add_argument('--beta2', type=float, default=0.999,
