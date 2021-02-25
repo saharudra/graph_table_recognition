@@ -234,16 +234,17 @@ class ResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        x_1 = self.layer1(x)
+        x_2 = self.layer2(x_1)
+        x_3 = self.layer3(x_2)
+        x_4 = self.layer4(x_3)
 
+        # Image features are required for further processing
         # x = self.avgpool(x)
         # x = torch.flatten(x, 1)
         # x = self.fc(x)
 
-        return x
+        return x_2, x_3, x_4
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
@@ -316,7 +317,6 @@ def wide_resnet50_2(pretrained: bool = False, progress: bool = True, **kwargs: A
                    pretrained, progress, **kwargs)
 
 
-
 if __name__ == '__main__':
     from torch_geometric.data import DataLoader
 
@@ -327,12 +327,13 @@ if __name__ == '__main__':
     train_dataset = ScitsrDatasetSB(dataloader_params)
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
 
-    resnet_model = resnet50()
+    f_name = 'resnet50'
+    resnet_model = eval(f_name + '(pretrained = True)')
 
     for idx, data in enumerate(train_loader):
         pos, imgpos, img = data.pos, data.imgpos, data.img
 
-        img_features = resnet_model(img)
-        print(img_features.shape)
+        img_features_2, img_features_3, img_features_4 = resnet_model(img)
+        print(img_features_2.shape, img_features_3.shape, img_features_4.shape)
         import pdb; pdb.set_trace()
 

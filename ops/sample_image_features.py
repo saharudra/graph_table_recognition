@@ -6,7 +6,7 @@ from torch_geometric.data import DataLoader
 import numpy as np
 import numpy_indexed as npi
 
-def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=16.0):
+def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=16.0, device='cuda'):
     """
     TODO: Make the feature efficient. Start by removing internal loops.
     cnnout:  batch_size x cnn_out_features x cnn_out_h x cnn_out_w
@@ -59,7 +59,7 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
         # Clip sampling grid to keep values between -1 and 1
         sampling_grid = np.clip(sampling_grid, -1.0, 1.0)
         
-        # Conver back to torch tensor
+        # Convert back to torch tensor
         sampling_grid = torch.FloatTensor(sampling_grid)
         sampling_grid = sampling_grid.unsqueeze(0) 
         sampling_grid = sampling_grid.unsqueeze(0)
@@ -70,7 +70,7 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
             imgpos = imgpos.unsqueeze(0)
             sampling_grid = imgpos
 
-        sampling_grid = sampling_grid.to(torch.device("cuda"))
+        sampling_grid = sampling_grid.to(torch.device(device))
         cnnin = cnnout[i].unsqueeze(0)  # Single graph
         sout = F.grid_sample(cnnin, sampling_grid, mode='bilinear', padding_mode='border')
         cnt+=nodenum[i]
@@ -80,7 +80,7 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
         # idx = torch.FloatTensor(np.repeat(np.arange(1, nodenum[i].item() + 1), num_samples)).view(nodenum[i].item() * num_samples, -1)
         # sout = torch.cat([idx, sout], axis=1)
         size = sout.size()
-        sampling_out = torch.empty((0, size[-1])).to(torch.device("cuda"))
+        sampling_out = torch.empty((0, size[-1])).to(torch.device(device))
         sample_lst = []
         for it, curr_out in enumerate(sout):
             curr_out = curr_out.reshape(1, size[-1])
@@ -90,7 +90,7 @@ def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=1
                 sampling_out = torch.cat([sampling_out, curr_out], axis=1)
             else:
                 sample_lst.append(sampling_out)
-                sampling_out = torch.empty((0, size[-1])).to(torch.device("cuda"))
+                sampling_out = torch.empty((0, size[-1])).to(torch.device(device))
                 sampling_out = torch.cat([sampling_out, curr_out], axis=0)
         sample_lst.append(sampling_out)
         sample_out = torch.cat(sample_lst, axis=0)

@@ -76,8 +76,6 @@ def img_model_params():
                         help='task to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
-    parser.add_argument('--device', type=str, default='cpu',
-                        help='device to run the code on cuda | cpu')
     
     # Base img model arguments
     parser.add_argument('--inc', type=int, default=3,
@@ -95,6 +93,17 @@ def img_model_params():
     parser.add_argument('--sp', nargs="+", default=[2, 2, 2],
                         help='stride for pooling')
 
+    # ResNet img model arguments
+    parser.add_argument('--resnet', type=bool, default=True,
+                        help='whether to use resnet model for image processing')
+    parser.add_argument('--resnet_model', type=str, default='resnet18',
+                        help='resnet model to be used: resnet18, resnet50, \
+                            resnext50_32x4d, wide_resnet50_2')
+    parser.add_argument('--resnet_out_layer', type=int, default=4,
+                        help='resnet layer to get image features from')
+    parser.add_argument('--resnet_pretrained', type=bool, default=False,
+                        help='resent model pre-trained with ImageNet features')
+
     opt = parser.parse_args()
 
     return opt
@@ -104,6 +113,8 @@ def base_params():
     parser = argparse.ArgumentParser(description="Arguments for table structure recognition base")
 
     # Global params
+    parser.add_argument('--device', type=str, default='cpu',
+                        help='device to run the code on cuda | cpu')
     parser.add_argument('--num_classes', type=int, default=2,
                         help='both row and col classification as binary classification')
 
@@ -111,7 +122,9 @@ def base_params():
     parser.add_argument('--num_hidden_features', type=int, default=64, 
                         help='number of hidden features for the entire processing')
     parser.add_argument('--num_node_features', type=int, default=8,
-                        help='number of input features of a node')
+                        help='number of input features of a node in graph models')
+    parser.add_argument('--num_pos_features', type=int, default=2,
+                        help='number of pos features for input to transformer model')
 
     # Text feature params
     parser.add_argument('--vocab_size', type=int, default=41,
@@ -122,17 +135,25 @@ def base_params():
                         help='whether to consider a bidirectional rnn')
 
     # Image feature params
-    parser.add_argument('--num_samples', type=int, default=1,
+    parser.add_argument('--num_samples', type=int, default=10,
                         help='number of points to sample image features from for each cell text')
     parser.add_argument('--div', type=float, default=16.0,
                         help='defining kurtosis of each of the isotropic gaussian distribution')
+
+    # Transformer model params
+    parser.add_argument('--num_encoder_layers', type=int, default=4,
+                        help='number of encoder layers in the transformer model')
+    parser.add_argument('--transformer_norm', type=str, default=None,
+                        help='norm for the transformer encoder layer')
+    parser.add_argument('--num_attn_heads', type=int, default=4,
+                        help='number of attention heads in each of the encoder layers')
     
     opt = parser.parse_args()
 
     return opt
 
 
-def train_params():
+def trainer_params():
     parser = argparse.ArgumentParser(description="Arguments for trainer scripts")
 
     # Base arguments
