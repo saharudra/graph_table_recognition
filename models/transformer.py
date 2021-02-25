@@ -86,7 +86,7 @@ class TbTSR(nn.Module):
                                             pos, cell_wh, img, 
                                             self.base_params.num_samples,
                                             self.base_params.div,
-                                            self.base_params.device)
+                                            self.trainer_params.device)
 
         # Both x and pos can be passed
         pos_img_features = torch.cat((pos, img_features_sampled), dim=1)
@@ -102,9 +102,11 @@ class TbTSR(nn.Module):
         
         # Row and Col classification  
         row_logits = self.lin_row(paired_transformed_features)
+        row_pred = nn.Softmax(row_logits)
         col_logits = self.lin_col(paired_transformed_features)
+        col_pred = nn.Softmax(col_logits)
 
-        return row_logits, col_logits
+        return row_pred, col_pred
 
 
 if __name__ == '__main__':

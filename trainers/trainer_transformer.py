@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data 
 from torch_geometric.data import Dataset, DataLoader
-import torch_geometric.transforms as GT
 
 import numpy as np
 import os
@@ -16,41 +15,50 @@ import random
 import wandb
 from datetime import datetime
 
-from models.version1 import TbNetV1
-from models.version2 import TbNetV2
-from dataloaders.scitsr import ScitsrDataset
-from misc.args import train_params, scitsr_params, img_model_params, base_params
+from models.transformer import TbTSR
+from dataloaders.scitsr_transformer import ScitsrDatasetSB
+from dataloaders.icdar_transformer import Icdar2013DatasetSB, Icdar2019DatasetSB
+from dataloaders.pubtabnet import PubTabNetDataset
+from misc.args import *
 from ops.misc import weights_init, mkdir_p
 
-"""
-Note on current training methods:
-Training methods are agnostic to models that take same input features
-to produce desired classification:
-
-Versions: 1, 2 (row/col/multi)
-"""
 
 def main(config):
     # Separate params
     dataset_params = config['dataset_params']
     img_model_params = config['img_params']
-    base_params = config['model_base_params']
+    base_params = config['model_params']
     trainer_params = config['trainer_params']
 
-    # Define dataloader
-    train_dataset = ScitsrDataset(dataset_params, partition='train')
-    train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True)
+    # Define dataloaders
+    if trainer_params.dataset == 'scitsr':
+        train_dataset = ScitsrDatasetSB(dataset_params)
+        train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True)
 
-    val_dataset = ScitsrDataset(dataset_params, partition='test')
-    val_loader = DataLoader(val_dataset, batch_size=trainer_params.batch_size, shuffle=False)
+        val_dataset = ScitsrDatasetSB(dataset_params, partition='test')
+        val_loader = DataLoader(val_dataset, batch_size=trainer_params.batch_size, shuffle=False)
 
-    # Define model based on version
-    if trainer_params.maj_ver == '1':
-        model = TbNetV1(base_params, img_model_params, trainer_params)
-    elif trainer_params.maj_ver == '2':
-        model = TbNetV2(base_params, img_model_params, trainer_params)
+    elif trainer_params.dataset == 'pubtabnet':
+        train_dataset = PubTabNetDataset(dataset_params)
+        train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True)
+
+        val_dataset = PubTabNetDataset(dataset_params, partition='val')
+        val_loader = DataLoader(val_dataset, batch_size=trainer_params.batch_size, shuffle=False)
+
+        test_dataset = PubTabNetDataset(dataset_params, partition='test')
+        test_loader = DataLoader(test_dataset, batch_size=trainer_params.batch_size, shuffle=False)
+
+    if trainer_params.eval_dataset == 'icdar2013':
+        eval_dataset = Icdar2013DatasetSB(dataset_params)
+        eval_loader = DataLoader(eval_dataset, batch_size=trainer_params.batch_size, shuffle=False)
+
+    elif trainer_params.eval_dataset == 'icdar2019':
+        eval_dataset = Icdar2019DatasetSB(dataset_params)
+        eval_loader = DataLoader(eval_dataset, batch_size=trainer_params.batch_size, shuffle=False)
+
+    # Define model
+    model = TbTSR(base_params, img_model_params, trainer_params)
     model.to(DEVICE)
-    # TODO: Weight initialization
     model.apply(weights_init)
 
     # Define optimizer and learning rate scheduler
@@ -67,9 +75,10 @@ def main(config):
                                             factor=trainer_params.lr_reduce_factor, verbose=True, 
                                             mode=trainer_params.lr_schedule_mode,
                                             cooldown=trainer_params.lr_cooldown, min_lr=trainer_params.min_lr)
-    
+
     # Define loss criteria
-    loss_criteria = nn.NLLLoss()
+    # TODO: Try cross entropy loss with weight tensor
+    loss_criteria = nn.BCELoss()
 
     # Watch model
     wandb.watch(model)
@@ -101,10 +110,10 @@ def main(config):
                     'val_row_acc': val_acc
                 }
             )
-
+        
         # Schedule learning rate
         if trainer_params.schedule_lr:
-            lr_scheduler.step(train_loss)
+            lr_scheduler.step(val_loss)
         
         # Save models based on accuracy
         if epoch % trainer_params.save_interval == 0:
@@ -127,72 +136,27 @@ def train(model, optimizer, train_loader, loss_criteria):
     for idx, data in enumerate(train_loader):
         # Perform single train step
         data = data.to(DEVICE)
-        row_pred = model(data)
+
+        row_pred, col_pred = model(data)
         row_loss = loss_function(row_pred, data.y_row, loss_criteria)
-        # Overall loss
-        loss = row_loss
-        loss.backward()
-        optimizer.step()
-        
-        # Aggregate losses
-        epoch_loss += loss.item()
-
-    epoch_loss /= len(train_loader.dataset)
-    
-    return epoch_loss
+        col_loss = loss_function(col_pred, data.y_col, loss_criteria)
+        loss = row_loss + col_loss
 
 
-def eval(model, val_loader, loss_criteria):
-    # Eval loop 
-    model.eval()
-    
-    val_loss = 0.0
-
-    n_correct_row = 0.0
-    n_total_row = 0.0
-
-    with torch.no_grad():
-        for idx, data in enumerate(val_loader):
-            data = data.to(DEVICE)
-            row_pred = model(data)
-            row_loss = loss_function(row_pred, data.y_row, loss_criteria)
-            loss = row_loss
-
-            val_loss += loss.item()
-            
-            # Accuracy calculation
-            _, row_pred = row_pred.max(1)
-            
-            row_label = data.y_row.detach().cpu().numpy()
-            row_pred = row_pred.detach().cpu().numpy()
-
-            n_correct_row = n_correct_row + (row_label == row_pred).sum()
-            n_total_row += row_label.shape[0]
-
-    val_loss /= len(val_loader.dataset)
-    val_acc = n_correct_row / n_total_row
-
-    return val_loss, val_acc
+def eval():
+    pass
 
 
-def loss_function(pred_row, data_row, loss_criteria):
-
-    row_loss = loss_criteria(pred_row, data_row)
-
-    return row_loss
+def loss_function():
+    pass
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Get argument dictionaries
-    img_params = img_model_params()
+    img_model_params = img_model_params()
     dataset_params = scitsr_params()
-    trainer_params = train_params()
-    model_base_params = base_params()
-
-    # Set params for row only things cause sometimes I am stupid :P
-    trainer_params.row_only = True
-    trainer_params.col_only = False
-    trainer_params.multi_task = False
+    trainer_params = trainer_params()
+    model_params = base_params()
 
     # Seed things
     torch.manual_seed(trainer_params.seed)
@@ -201,7 +165,7 @@ if __name__ == "__main__":
     random.seed(trainer_params.seed)
 
     # Create save locations
-    time = datetime.now()
+    time = datetime.now
     time = time.strftime('%Y_%m_%d_%H_%M')
     root_path = os.getcwd() + os.sep + trainer_params.exp + os.sep + trainer_params.run + '_' + time
     mkdir_p(root_path)
@@ -217,12 +181,6 @@ if __name__ == "__main__":
              CUDA device not being used for current run')
         DEVICE = torch.device("cpu")
 
-
-    # Create wandb config dict
-    config_dict = {'img_params': vars(img_params),
-                    'dataset_params': vars(dataset_params),
-                    'trainer_params': vars(trainer_params),
-                    'model_base_params': vars(model_base_params)}
     print("#" * 100)
     print("CURRENT CONFIGURATION")
     print("#" * 100)
@@ -236,9 +194,7 @@ if __name__ == "__main__":
     namespace_config_dict = {'img_params': img_params,
                              'dataset_params': dataset_params,
                              'trainer_params': trainer_params,
-                             'model_base_params': model_base_params
+                             'model_params': model_params
                             }
 
     main(config=namespace_config_dict)
-
-    

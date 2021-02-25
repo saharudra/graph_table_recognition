@@ -46,8 +46,6 @@ def scitsr_params():
                               min_dim doesnot require it.')
     parser.add_argument('--kernel_size', type=int, default=3,
                         help='size of the kernel for dilation or erosion')
-    parser.add_argument('--device', type=str, default='cpu',
-                        help='device to run graph transform on, currently cpu')
     parser.add_argument('--graph_k', type=int, default=6,
                         help='K-value for KNN graph transform')
     parser.add_argument('--dilate', type=bool, default=False,
@@ -113,8 +111,6 @@ def base_params():
     parser = argparse.ArgumentParser(description="Arguments for table structure recognition base")
 
     # Global params
-    parser.add_argument('--device', type=str, default='cpu',
-                        help='device to run the code on cuda | cpu')
     parser.add_argument('--num_classes', type=int, default=1,
                         help='both row and col classification as binary classification')
 
@@ -159,14 +155,14 @@ def trainer_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='table_structure_recognition',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='2_c_col',
+    parser.add_argument('--run', type=str, default='transformer_vanilla',
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
     parser.add_argument('--device', type=str, default='cpu',
                         help='device to run the code on cuda | cpu')
 
-    # Training type arguments
+    # Training type arguments for GFTE variants
     parser.add_argument('--maj_ver', type=str, default='2',
                         help='major model version to train: 1 | 2 ...')
     parser.add_argument('--min_ver', type=str, default='c',
@@ -179,13 +175,17 @@ def trainer_params():
                         help='trains above model with multi-task loss and reports row/col acc.')
 
     # Dataloader arguments
+    parser.add_argument('--dataset', type=str, default='scitsr',
+                        help='dataset to be used for training and validation scitsr | pubtabnet')
+    parser.add_argument('--eval_dataset', type=str, default='icdar2013'
+                        help='dataset to be used for evaluating and benchmarking models icdar2013 | icdar2019')
     parser.add_argument('--workers', type=int, default=0,
                         help='number of dataloading workers, not an option in torch_geometric')
-    parser.add_argument('--batch_size', type=int, default=32,
+    parser.add_argument('--batch_size', type=int, default=1,
                         help='input batch size')
 
     # Training arguments
-    parser.add_argument('--num_epochs', type=int, default=100, 
+    parser.add_argument('--num_epochs', type=int, default=1000, 
                         help='number of epochs to train for')
 
     parser.add_argument('--lr', type=float, default=1e-3,
