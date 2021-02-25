@@ -12,3 +12,10 @@ inp_mlp = torch.randn(64, 16)
 mlp = nn.Linear(16, 2)
 out_mlp = mlp(inp_mlp)
 print(out_mlp.shape)
+
+weights = torch.tensor([9.8, 68.0, 5.3, 3.5, 10.8, 1.1, 1.4], dtype=torch.float32)
+weights = weights / weights.sum()
+print(weights)
+weights = 1.0 / weights
+weights = weights / weights.sum()
+print(weights)

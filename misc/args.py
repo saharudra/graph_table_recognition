@@ -115,7 +115,7 @@ def base_params():
     # Global params
     parser.add_argument('--device', type=str, default='cpu',
                         help='device to run the code on cuda | cpu')
-    parser.add_argument('--num_classes', type=int, default=2,
+    parser.add_argument('--num_classes', type=int, default=1,
                         help='both row and col classification as binary classification')
 
     # Position feature params 

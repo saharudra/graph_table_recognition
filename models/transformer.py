@@ -43,8 +43,18 @@ class TbTSR(nn.Module):
         self.encoder_layers = TransformerEncoderLayer(self.num_expected_features, self.base_params.num_attn_heads)
         self.encoder = TransformerEncoder(self.encoder_layers, self.base_params.num_encoder_layers, self.base_params.transformer_norm) 
         
-        # Define mlp classification heads
-        self.row_head = nn.Linear(self.num_expected_features, )
+        # row/col classification heads
+        self.lin_row = nn.Sequential(
+            nn.Linear(self.num_expected_features * 2, self.base_params.num_hidden_features),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
+        )
+
+        self.lin_col = nn.Sequential(
+            nn.Linear(self.num_expected_features * 2, self.base_params.num_hidden_features),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
+        )
 
     def get_img_model(self, img_model_params):
         """
@@ -90,12 +100,11 @@ class TbTSR(nn.Module):
         paired_transformed_features = pairwise_combinations(transformed_features)
         print(paired_transformed_features.shape)
         
-        # Row and Col classification
+        # Row and Col classification  
+        row_logits = self.lin_row(paired_transformed_features)
+        col_logits = self.lin_col(paired_transformed_features)
 
-
-        
-
-
+        return row_logits, col_logits
 
 
 if __name__ == '__main__':
@@ -115,7 +124,7 @@ if __name__ == '__main__':
     model = TbTSR(base_params, img_model_params, trainer_params)
 
     for idx, data in enumerate(train_loader):
-        model(data)
+        row_logits, col_logits = model(data)
         import pdb; pdb.set_trace()
 
 
