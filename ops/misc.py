@@ -23,15 +23,15 @@ def weights_init(m):
 
 
 def pairwise_combinations(tensor):
-    # Numpy version for an array
-    row, col = tensor.shape
-    print(row, col) 
-    r, c = torch.triu_indices(row, col, 0)
-    out = torch.hstack((tensor[r], tensor[c]))
+    # get upper triangular matrix to create 
+    # indices from the tensor to be paired
+    row = len(tensor)
+    r, c = np.triu_indices(row, 1)
+    out = torch.cat((tensor[r], tensor[c]), dim=1)
     return out
 
 
 if __name__ == '__main__':
-    arr = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13, 14, 15]])
-    out = pairwise_combinations(arr)
+    arr = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13, 14, 15], [16, 17, 18]])
+    out = pairwise_combinations(arr).numpy()
     print(out)

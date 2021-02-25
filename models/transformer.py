@@ -21,6 +21,7 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 from models.resnet import resnet18, resnet50, resnext50_32x4d, wide_resnet50_2
 from ops.sample_image_features import sample_box_features
+from ops.misc import pairwise_combinations
 
 
 class TbTSR(nn.Module):
@@ -34,13 +35,17 @@ class TbTSR(nn.Module):
         self.img_model = self.get_img_model(self.img_model_params)
 
         # Define transformer encoder module
-        num_expected_features = ((self.base_params.num_hidden_features // 2) * \
-                                (2 ** self.img_model_params.resnet_out_layer)) \
+        self.num_expected_features = ((self.base_params.num_hidden_features // 2) \
+                                * (2 ** self.img_model_params.resnet_out_layer)) \
+                                * self.base_params.num_samples \
                                 + self.base_params.num_pos_features
 
-        self.encoder_layers = TransformerEncoderLayer(num_expected_features, self.base_params.num_attn_heads)
+        self.encoder_layers = TransformerEncoderLayer(self.num_expected_features, self.base_params.num_attn_heads)
         self.encoder = TransformerEncoder(self.encoder_layers, self.base_params.num_encoder_layers, self.base_params.transformer_norm) 
         
+        # Define mlp classification heads
+        self.row_head = nn.Linear(self.num_expected_features, )
+
     def get_img_model(self, img_model_params):
         """
         TODO: Add FPN with forward and backward feature concatenation with ResNet
@@ -58,17 +63,9 @@ class TbTSR(nn.Module):
         return img_model
 
     def get_img_features(self, img):
-        """
-        TODO: Refactor method after changing img_model
-        """
         if self.img_model_params.resnet:
-            img_features_2, img_features_3, img_features_4 = self.img_model(img)
-            if self.img_model_params.resnet_out_layer == 4:
-                return img_features_4
-            elif self.img_model_params.resnet_out_layer == 3:
-                return img_features_3
-            elif self.img_model_params.resnet_out_layer == 2:
-                return img_features_2
+            img_features = self.img_model(img)
+            return img_features
 
     def forward(self, data):
         x, img, pos, nodenum, cell_wh = data.x, data.img, data.pos, data.nodenum, data.cell_wh
@@ -80,13 +77,23 @@ class TbTSR(nn.Module):
                                             self.base_params.num_samples,
                                             self.base_params.div,
                                             self.base_params.device)
-        
-        print(img_features_sampled.shape)
 
         # Both x and pos can be passed
         pos_img_features = torch.cat((pos, img_features_sampled), dim=1)
+        pos_img_features = pos_img_features.unsqueeze(0)
 
-        print(pos_img_features.shape)
+        # Transform image and position features
+        transformed_features = self.encoder(pos_img_features)
+
+        # Concatenate transformed features 
+        transformed_features = transformed_features.squeeze(0)
+        paired_transformed_features = pairwise_combinations(transformed_features)
+        print(paired_transformed_features.shape)
+        
+        # Row and Col classification
+
+
+        
 
 
 

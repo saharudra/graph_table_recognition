@@ -99,7 +99,7 @@ def img_model_params():
     parser.add_argument('--resnet_model', type=str, default='resnet18',
                         help='resnet model to be used: resnet18, resnet50, \
                             resnext50_32x4d, wide_resnet50_2')
-    parser.add_argument('--resnet_out_layer', type=int, default=4,
+    parser.add_argument('--resnet_out_layer', type=int, default=3,
                         help='resnet layer to get image features from')
     parser.add_argument('--resnet_pretrained', type=bool, default=False,
                         help='resent model pre-trained with ImageNet features')
@@ -135,7 +135,7 @@ def base_params():
                         help='whether to consider a bidirectional rnn')
 
     # Image feature params
-    parser.add_argument('--num_samples', type=int, default=10,
+    parser.add_argument('--num_samples', type=int, default=1,
                         help='number of points to sample image features from for each cell text')
     parser.add_argument('--div', type=float, default=16.0,
                         help='defining kurtosis of each of the isotropic gaussian distribution')
@@ -145,7 +145,7 @@ def base_params():
                         help='number of encoder layers in the transformer model')
     parser.add_argument('--transformer_norm', type=str, default=None,
                         help='norm for the transformer encoder layer')
-    parser.add_argument('--num_attn_heads', type=int, default=4,
+    parser.add_argument('--num_attn_heads', type=int, default=6,
                         help='number of attention heads in each of the encoder layers')
     
     opt = parser.parse_args()
