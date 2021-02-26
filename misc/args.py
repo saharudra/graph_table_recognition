@@ -177,7 +177,7 @@ def trainer_params():
     # Dataloader arguments
     parser.add_argument('--dataset', type=str, default='scitsr',
                         help='dataset to be used for training and validation scitsr | pubtabnet')
-    parser.add_argument('--eval_dataset', type=str, default='icdar2013'
+    parser.add_argument('--eval_dataset', type=str, default='icdar2013',
                         help='dataset to be used for evaluating and benchmarking models icdar2013 | icdar2019')
     parser.add_argument('--workers', type=int, default=0,
                         help='number of dataloading workers, not an option in torch_geometric')

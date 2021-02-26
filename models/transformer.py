@@ -47,13 +47,15 @@ class TbTSR(nn.Module):
         self.lin_row = nn.Sequential(
             nn.Linear(self.num_expected_features * 2, self.base_params.num_hidden_features),
             nn.ReLU(inplace=True),
-            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
+            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes),
+            nn.Softmax()
         )
 
         self.lin_col = nn.Sequential(
             nn.Linear(self.num_expected_features * 2, self.base_params.num_hidden_features),
             nn.ReLU(inplace=True),
-            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
+            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes),
+            nn.Softmax()
         )
 
     def get_img_model(self, img_model_params):
@@ -101,10 +103,8 @@ class TbTSR(nn.Module):
         print(paired_transformed_features.shape)
         
         # Row and Col classification  
-        row_logits = self.lin_row(paired_transformed_features)
-        row_pred = nn.Softmax(row_logits)
-        col_logits = self.lin_col(paired_transformed_features)
-        col_pred = nn.Softmax(col_logits)
+        row_pred = self.lin_row(paired_transformed_features)
+        col_pred = self.lin_col(paired_transformed_features)
 
         return row_pred, col_pred
 
