@@ -4,6 +4,7 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 encoder_layers = TransformerEncoderLayer(8, 4)
 encoder = TransformerEncoder(encoder_layers, 2)
+print(encoder)
 
 inp = torch.randn(1, 10, 8)
 out = encoder(inp)

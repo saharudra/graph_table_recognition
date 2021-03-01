@@ -243,13 +243,13 @@ class ScitsrDatasetSB(Dataset):
 
         y_row = self.cal_all_pair_row_label(data, tbpos)
         y_col = self.cal_all_pair_col_label(data, tbpos)
-        y_adjacency = self.cal_adjacency(y_row, y_col)
+        # y_adjacency = self.cal_adjacency(y_row, y_col)
 
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
 
         data.y_row = torch.LongTensor(y_row)
         data.y_col = torch.LongTensor(y_col)
-        data.y_adjacency = torch.LongTensor(y_adjacency)
+        # data.y_adjacency = torch.LongTensor(y_adjacency)
         data.img = img
         data.imgpos = torch.FloatTensor(imgpos)
         data.cell_wh = torch.FloatTensor(cell_wh)
@@ -272,14 +272,13 @@ class ScitsrDatasetSB(Dataset):
         return y
 
     def cal_adjacency(self, row_mat, col_mat):
-        y = []
-        # Row logic: If the there is a row of 1s, only the first element counts
-        # for adjacency rest are in just the same row
-        # Col logic: Counter based on number of cells in the table
-        # num_cells = (math.sqrt(4 * 2 * len(row_mat) + 1) + 1) / 2
-        # for i in range(len(row_mat)):
-        #     if i > num_cells - 1:
-        #         num_cells -= 1
+        y_row = []
+        y_col = []
+        # Use counter with num_cells for both row and col adjacency
+        num_cells = (math.sqrt(4 * 2 * len(row_mat) + 1) + 1) / 2
+        for i in range(len(row_mat)):
+            pass
+
 
 
     def is_same_row(self, si, ei, tbpos):

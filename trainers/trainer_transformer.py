@@ -90,26 +90,19 @@ def main(config):
     # Outer train loop
     print("*** STARTING TRAINING LOOP ***")
     for epoch in range(trainer_params.num_epochs):
-        train_loss, row_loss, col_loss = train(model, optimizer, train_loader, loss_criteria, trainer_params)
-        print("Epoch: {}, Overall Loss: {}".format(epoch, train_loss))
+        train_out_dict = train(model, optimizer, train_loader, loss_criteria, trainer_params)
+        print("Epoch: {}, Overall Loss: {}".format(epoch, train_out_dict['train_loss']))
         
         # Log information
         wandb.log(
-            {
-                'train_loss': train_loss
-            }
+            {train_out_dict}
         )
 
         if epoch % trainer_params.val_interval == 0:
-            val_loss, val_acc = eval(model, val_loader, loss_criteria)
+            val_out_dict = eval(model, val_loader, loss_criteria)
 
             # Log information
-            wandb.log(
-                {
-                    'val_loss': val_loss,
-                    'val_row_acc': val_acc
-                }
-            )
+            wandb.log(val_out_dict)
         
         # Schedule learning rate
         if trainer_params.schedule_lr:
@@ -160,7 +153,13 @@ def train(model, optimizer, train_loader, loss_criteria, trainer_params):
     row_loss /= len(train_loader.dataset)
     col_loss /= len(train_loader.dataset)
 
-    return epoch_loss, row_loss, col_loss
+    train_out_dict = {  
+        'train_loss': epoch_loss,
+        'train_row_loss': row_loss,
+        'train_col_loss': col_loss
+    }
+
+    return train_out_dict
 
 
 def eval(model, val_loader, loss_criteria):
@@ -171,7 +170,54 @@ def eval(model, val_loader, loss_criteria):
     row_loss = 0.0
     col_loss = 0.0
 
-    # Calculate precision, recall and F1 score here
+    n_correct_row = 0.0
+    n_correct_col = 0.0
+
+    with torch.no_grad():
+        for idx, data in enumerate(val_loader):
+            data = data.to(DEVICE)
+
+            row_pred, col_pred = model(data)
+            row_loss = loss_function(row_pred, data.y_row, loss_criteria)
+            col_loss = loss_function(col_pred, data.y_col, loss_criteria)
+            loss = row_loss + col_loss
+
+            val_loss += loss.item()
+            row_loss += row_loss.item()
+            col_loss += col_loss.item()
+
+            # Accuracy calculation
+            _, row_pred = row_pred.max(1)
+            _, col_pred = col_pred.max(1)
+
+            row_label = data.y_row.detach().cpu().numpy()
+            col_label = col_label.detach().cpu().numpy()
+            row_pred = row_pred.detach().cpu().numpy()
+            col_pred = col_pred.detach().cpu().numpy()
+
+            n_correct_row = n_correct_row + (row_label == row_pred).sum()
+            n_correct_col = n_correct_col + (col_label == col_pred).sum()
+            n_total_row += row_label.shape[0]
+            n_total_col += col_label.shape[0]
+
+    val_loss /= len(val_loader.dataset)
+    row_loss /= len(val_loader.dataset)
+    col_loss /= len(val_loader.dataset)
+
+    row_acc = n_correct_row / n_total_row
+    col_acc = n_correct_col / n_total_col
+    val_acc = (row_acc + col_acc) * 0.5
+
+    val_out_dict = {
+        'val_loss': val_loss,
+        'val_row_loss': row_loss,
+        'val_col_loss': col_loss,
+        'val_acc': val_acc,
+        'val_row_acc': row_acc,
+        'val_col_acc': col_acc
+    }
+
+    return val_out_dict
 
 
 def loss_function(pred, target, loss_criteria):
