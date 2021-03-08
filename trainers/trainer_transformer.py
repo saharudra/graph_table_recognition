@@ -89,6 +89,8 @@ def main(config):
 
     # Outer train loop
     print("*** STARTING TRAINING LOOP ***")
+    print("Length of training dataset: {}".format(len(train_loader)))
+    print("Length of validation dataset: {}".format(len(val_loader)))
     for epoch in range(trainer_params.num_epochs):
         train_out_dict = train(model, optimizer, train_loader, loss_criteria, trainer_params)
         print("Epoch: {}, Overall Loss: {}".format(epoch, train_out_dict['train_loss']))
@@ -140,9 +142,9 @@ def train(model, optimizer, train_loader, loss_criteria, trainer_params):
         loss.backward()
 
         # Accumulate gradients for training stability
-        if (idx + 1) % trainer_params.optimizer_accu_steps == 0:
-            optimizer.step()
-            optimizer.zero_grad()
+        # if (idx + 1) % trainer_params.optimizer_accu_steps == 0:
+        optimizer.step()
+        optimizer.zero_grad()
         
         # Aggregate losses
         epoch_loss += loss.item()
@@ -229,7 +231,7 @@ def loss_function(pred, target, loss_criteria):
 
 if __name__ == '__main__':
     # Get argument dictionaries
-    img_model_params = img_model_params()
+    img_params = img_model_params()
     dataset_params = scitsr_params()
     trainer_params = trainer_params()
     model_params = base_params()
@@ -241,7 +243,7 @@ if __name__ == '__main__':
     random.seed(trainer_params.seed)
 
     # Create save locations
-    time = datetime.now
+    time = datetime.now()
     time = time.strftime('%Y_%m_%d_%H_%M')
     root_path = os.getcwd() + os.sep + trainer_params.exp + os.sep + trainer_params.run + '_' + time
     mkdir_p(root_path)
@@ -251,12 +253,18 @@ if __name__ == '__main__':
     # Set CUDA access
     use_cuda = torch.cuda.is_available() and trainer_params.device == 'cuda'
     if use_cuda:
+        print("Using CUDA resources for training")
         DEVICE = torch.device("cuda")
     else:
         print('Warning: CPU is being used to run model,\
              CUDA device not being used for current run')
         DEVICE = torch.device("cpu")
 
+    # Create wandb config dict
+    config_dict = {'img_params': vars(img_params),
+                    'dataset_params': vars(dataset_params),
+                    'trainer_params': vars(trainer_params),
+                    'model_base_params': vars(model_params)}
     print("#" * 100)
     print("CURRENT CONFIGURATION")
     print("#" * 100)

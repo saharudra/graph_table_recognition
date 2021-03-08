@@ -62,7 +62,7 @@ class ScitsrDatasetSB(Dataset):
         for idx in range(len(self.imglist)):
             print('*** file:', self.imglist[idx])
             # structs, chunks, img, rels = self.readlabel(idx)
-            structs, chunks, img = self.readlabel(idx)
+            structs, chunks, img, rescale_params = self.readlabel(idx)
             print(structs, chunks)
             vi = self.check_chunks(structs, chunks)
             if vi == 1 and (img is not None):
@@ -247,8 +247,8 @@ class ScitsrDatasetSB(Dataset):
 
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
 
-        data.y_row = torch.LongTensor(y_row)
-        data.y_col = torch.LongTensor(y_col)
+        data.y_row = torch.FloatTensor(y_row)
+        data.y_col = torch.FloatTensor(y_col)
         # data.y_adjacency = torch.LongTensor(y_adjacency)
         data.img = img
         data.imgpos = torch.FloatTensor(imgpos)
