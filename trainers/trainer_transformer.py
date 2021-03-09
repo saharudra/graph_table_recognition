@@ -14,6 +14,7 @@ import json
 import random
 import wandb
 from datetime import datetime
+import tqdm
 
 from models.transformer import TbTSR
 from dataloaders.scitsr_transformer import ScitsrDatasetSB
@@ -96,15 +97,16 @@ def main(config):
         print("Epoch: {}, Overall Loss: {}".format(epoch, train_out_dict['train_loss']))
         
         # Log information
-        wandb.log(
-            {train_out_dict}
-        )
+        wandb.log(train_out_dict)
 
         if epoch % trainer_params.val_interval == 0:
             val_out_dict = eval(model, val_loader, loss_criteria)
 
             # Log information
             wandb.log(val_out_dict)
+            print('Validation Accuracy: {}, Validation Row Acc: {}, Validation Col Acc: {}'.format(val_out_dict['val_acc'],
+                                                                                                   val_out_dict['val_row_acc'],
+                                                                                                   val_out_dict['val_col_acc']))
         
         # Schedule learning rate
         if trainer_params.schedule_lr:
@@ -174,6 +176,8 @@ def eval(model, val_loader, loss_criteria):
 
     n_correct_row = 0.0
     n_correct_col = 0.0
+    n_total_row = 0.0
+    n_total_col = 0.0
 
     with torch.no_grad():
         for idx, data in enumerate(val_loader):
@@ -193,7 +197,7 @@ def eval(model, val_loader, loss_criteria):
             _, col_pred = col_pred.max(1)
 
             row_label = data.y_row.detach().cpu().numpy()
-            col_label = col_label.detach().cpu().numpy()
+            col_label = data.y_col.detach().cpu().numpy()
             row_pred = row_pred.detach().cpu().numpy()
             col_pred = col_pred.detach().cpu().numpy()
 

@@ -98,7 +98,7 @@ class TbTSR(nn.Module):
 
         # Transform image and position features
         # transformed_features = self.encoder(pos_img_features)
-        print(pos_features.shape)
+        # print(pos_features.shape)
         transformed_features = self.encoder(pos_features)
 
         # Concatenate transformed features 
