@@ -29,7 +29,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR',
+    parser.add_argument('--data_dir', type=str, default='/datatop_1/rudra/table_recognition/datasets/SciTSR',
                         help='data directory')
 
     # Data processing arguments
@@ -137,11 +137,11 @@ def base_params():
                         help='defining kurtosis of each of the isotropic gaussian distribution')
 
     # Transformer model params
-    parser.add_argument('--num_encoder_layers', type=int, default=4,
+    parser.add_argument('--num_encoder_layers', type=int, default=2,
                         help='number of encoder layers in the transformer model')
     parser.add_argument('--transformer_norm', type=str, default=None,
                         help='norm for the transformer encoder layer')
-    parser.add_argument('--num_attn_heads', type=int, default=6,
+    parser.add_argument('--num_attn_heads', type=int, default=2,
                         help='number of attention heads in each of the encoder layers')
     
     opt = parser.parse_args()

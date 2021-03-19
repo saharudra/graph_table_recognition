@@ -14,6 +14,7 @@ import json
 import random
 import wandb
 from datetime import datetime
+import tqdm
 
 from models.transformer import TbTSR
 from dataloaders.scitsr_transformer import ScitsrDatasetSB
@@ -89,20 +90,23 @@ def main(config):
 
     # Outer train loop
     print("*** STARTING TRAINING LOOP ***")
+    print("Length of training dataset: {}".format(len(train_loader)))
+    print("Length of validation dataset: {}".format(len(val_loader)))
     for epoch in range(trainer_params.num_epochs):
         train_out_dict = train(model, optimizer, train_loader, loss_criteria, trainer_params)
         print("Epoch: {}, Overall Loss: {}".format(epoch, train_out_dict['train_loss']))
         
         # Log information
-        wandb.log(
-            {train_out_dict}
-        )
+        wandb.log(train_out_dict)
 
         if epoch % trainer_params.val_interval == 0:
             val_out_dict = eval(model, val_loader, loss_criteria)
 
             # Log information
             wandb.log(val_out_dict)
+            print('Validation Accuracy: {}, Validation Row Acc: {}, Validation Col Acc: {}'.format(val_out_dict['val_acc'],
+                                                                                                   val_out_dict['val_row_acc'],
+                                                                                                   val_out_dict['val_col_acc']))
         
         # Schedule learning rate
         if trainer_params.schedule_lr:
@@ -140,9 +144,9 @@ def train(model, optimizer, train_loader, loss_criteria, trainer_params):
         loss.backward()
 
         # Accumulate gradients for training stability
-        if (idx + 1) % trainer_params.optimizer_accu_steps == 0:
-            optimizer.step()
-            optimizer.zero_grad()
+        # if (idx + 1) % trainer_params.optimizer_accu_steps == 0:
+        optimizer.step()
+        optimizer.zero_grad()
         
         # Aggregate losses
         epoch_loss += loss.item()
@@ -172,6 +176,8 @@ def eval(model, val_loader, loss_criteria):
 
     n_correct_row = 0.0
     n_correct_col = 0.0
+    n_total_row = 0.0
+    n_total_col = 0.0
 
     with torch.no_grad():
         for idx, data in enumerate(val_loader):
@@ -191,7 +197,7 @@ def eval(model, val_loader, loss_criteria):
             _, col_pred = col_pred.max(1)
 
             row_label = data.y_row.detach().cpu().numpy()
-            col_label = col_label.detach().cpu().numpy()
+            col_label = data.y_col.detach().cpu().numpy()
             row_pred = row_pred.detach().cpu().numpy()
             col_pred = col_pred.detach().cpu().numpy()
 
@@ -229,7 +235,7 @@ def loss_function(pred, target, loss_criteria):
 
 if __name__ == '__main__':
     # Get argument dictionaries
-    img_model_params = img_model_params()
+    img_params = img_model_params()
     dataset_params = scitsr_params()
     trainer_params = trainer_params()
     model_params = base_params()
@@ -241,7 +247,7 @@ if __name__ == '__main__':
     random.seed(trainer_params.seed)
 
     # Create save locations
-    time = datetime.now
+    time = datetime.now()
     time = time.strftime('%Y_%m_%d_%H_%M')
     root_path = os.getcwd() + os.sep + trainer_params.exp + os.sep + trainer_params.run + '_' + time
     mkdir_p(root_path)
@@ -251,12 +257,18 @@ if __name__ == '__main__':
     # Set CUDA access
     use_cuda = torch.cuda.is_available() and trainer_params.device == 'cuda'
     if use_cuda:
+        print("Using CUDA resources for training")
         DEVICE = torch.device("cuda")
     else:
         print('Warning: CPU is being used to run model,\
              CUDA device not being used for current run')
         DEVICE = torch.device("cpu")
 
+    # Create wandb config dict
+    config_dict = {'img_params': vars(img_params),
+                    'dataset_params': vars(dataset_params),
+                    'trainer_params': vars(trainer_params),
+                    'model_base_params': vars(model_params)}
     print("#" * 100)
     print("CURRENT CONFIGURATION")
     print("#" * 100)

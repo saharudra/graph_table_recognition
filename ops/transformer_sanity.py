@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
-encoder_layers = TransformerEncoderLayer(8, 4)
+encoder_layers = TransformerEncoderLayer(2, 2)
 encoder = TransformerEncoder(encoder_layers, 2)
 print(encoder)
 
-inp = torch.randn(1, 10, 8)
+inp = torch.randn(1, 18, 2)
 out = encoder(inp)
 print(out.shape)
 inp_mlp = torch.randn(64, 16)

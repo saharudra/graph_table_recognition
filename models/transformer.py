@@ -35,10 +35,11 @@ class TbTSR(nn.Module):
         self.img_model = self.get_img_model(self.img_model_params)
 
         # Define transformer encoder module
-        self.num_expected_features = ((self.base_params.num_hidden_features // 2) \
-                                * (2 ** self.img_model_params.resnet_out_layer)) \
-                                * self.base_params.num_samples \
-                                + self.base_params.num_pos_features
+        # self.num_expected_features = ((self.base_params.num_hidden_features // 2) \
+        #                         * (2 ** self.img_model_params.resnet_out_layer)) \
+        #                         * self.base_params.num_samples \
+        #                         + self.base_params.num_pos_features
+        self.num_expected_features = self.base_params.num_pos_features
 
         self.encoder_layers = TransformerEncoderLayer(self.num_expected_features, self.base_params.num_attn_heads)
         self.encoder = TransformerEncoder(self.encoder_layers, self.base_params.num_encoder_layers, self.base_params.transformer_norm) 
@@ -83,24 +84,26 @@ class TbTSR(nn.Module):
         x, img, pos, nodenum, cell_wh = data.x, data.img, data.pos, data.nodenum, data.cell_wh
 
         # Get image features
-        img_features_global = self.get_img_features(img)
-        img_features_sampled = sample_box_features(img_features_global, nodenum,
-                                            pos, cell_wh, img, 
-                                            self.base_params.num_samples,
-                                            self.base_params.div,
-                                            self.trainer_params.device)
+        # img_features_global = self.get_img_features(img)
+        # img_features_sampled = sample_box_features(img_features_global, nodenum,
+        #                                     pos, cell_wh, img, 
+        #                                     self.base_params.num_samples,
+        #                                     self.base_params.div,
+        #                                     self.trainer_params.device)
 
         # Both x and pos can be passed
-        pos_img_features = torch.cat((pos, img_features_sampled), dim=1)
-        pos_img_features = pos_img_features.unsqueeze(0)
+        # pos_img_features = torch.cat((pos, img_features_sampled), dim=1)
+        # pos_img_features = pos_img_features.unsqueeze(0)
+        pos_features = pos.unsqueeze(0)
 
         # Transform image and position features
-        transformed_features = self.encoder(pos_img_features)
+        # transformed_features = self.encoder(pos_img_features)
+        # print(pos_features.shape)
+        transformed_features = self.encoder(pos_features)
 
         # Concatenate transformed features 
         transformed_features = transformed_features.squeeze(0)
         paired_transformed_features = pairwise_combinations(transformed_features)
-        print(paired_transformed_features.shape)
         
         # Row and Col classification  
         row_pred = self.lin_row(paired_transformed_features)
