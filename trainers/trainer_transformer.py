@@ -110,14 +110,14 @@ def main(config):
         
         # Schedule learning rate
         if trainer_params.schedule_lr:
-            lr_scheduler.step(val_loss)
+            lr_scheduler.step(val_out_dict['val_loss'])
         
         # Save models based on accuracy
         if epoch % trainer_params.save_interval == 0:
-            if val_acc > best_accuracy:
+            if val_out_dict['val_acc'] > best_accuracy:
                 model_path = log_path + os.sep + "net_{}_best_so_far.pth".format(epoch)
                 torch.save(model.state_dict(), model_path)
-                best_accuracy = val_acc
+                best_accuracy = val_out_dict['val_acc']
                 best_epoch = epoch
         
     print("*** TRAINING IS COMPLETE ***")
