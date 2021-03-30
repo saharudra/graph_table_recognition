@@ -29,7 +29,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/data/rudra/table_structure_recognition/datasets/SciTSR_25',
+    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR',
                         help='data directory')
 
     # Data processing arguments
@@ -71,7 +71,8 @@ def scitsr_params():
                         help='the rule being applied to create sets')
     
     # Params for naive_gaussian rule
-    
+    parser.add_argument('--ng_mean_pos', type=str, default='centroid',
+                        help='where to put the mean location for 1-D Gaussians, centroid | tlbr')
 
     opt = parser.parse_args()
 

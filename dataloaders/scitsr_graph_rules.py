@@ -234,8 +234,9 @@ class ScitsrDatasetSB(Dataset):
         
         x = torch.FloatTensor(x)
         pos = torch.FloatTensor(pos)
+        img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
         # Obtain edges from set creation function using positions
-        edge_index = self.rule_based_set_generation(pos)
+        edge_index = self.rule_based_set_generation(pos, img)
         data = Data(x=x, pos=pos, edge_index=edge_index)
         
         # y_row = self.cal_row_label(data, tbpos)
@@ -248,9 +249,9 @@ class ScitsrDatasetSB(Dataset):
     
         # return data
 
-    def rule_based_set_generation(self, pos):
+    def rule_based_set_generation(self, pos, img):
         if self.params.rules_constraint == 'naive_gaussian':
-            return naive_gaussian(pos)
+            return naive_gaussian(pos, img, self.params)
 
 
 
