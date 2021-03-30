@@ -22,16 +22,31 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-def pairwise_combinations(tensor):
-    # get upper triangular matrix to create 
-    # indices from the tensor to be paired
-    row = len(tensor)
-    r, c = np.triu_indices(row, 1)
-    out = torch.cat((tensor[r], tensor[c]), dim=1)
-    return out
+def pairwise_combinations(tensor, batched=False):
+    if not batched:
+        # get upper triangular matrix to create 
+        # indices from the tensor to be paired
+        row = len(tensor)
+        r, c = np.triu_indices(row, 1)
+        out = torch.cat((tensor[r], tensor[c]), dim=1)
+        return out
+    else:
+        # Perform the same for each of the rows for the tensor
+        # TODO: Vectorize this!
+        out_tensor = []
+        for sample in tensor:
+            row = len(sample)
+            r, c = np.triu_indices(row, 1)
+            out = torch.cat((sample[r], sample[c]), dim=1)
+            out_tensor.append(out)
+        out_tensor = torch.cat([sample.unsqueeze(0) for sample in out_tensor], dim=0)
+        return out_tensor
 
 
 if __name__ == '__main__':
-    arr = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13, 14, 15], [16, 17, 18]])
-    out = pairwise_combinations(arr).numpy()
-    print(out)
+    arr = torch.tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [19, 20, 21]], 
+                       [[10, 11, 12], [13, 14, 15], [16, 17, 18], [22, 23, 24]]])
+    # arr = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    print("Shape of input {}".format(arr.shape))
+    out = pairwise_combinations(arr, batched=True).numpy()
+    print("Shape of final output {}".format(out.shape))

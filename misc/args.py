@@ -29,7 +29,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/datatop_1/rudra/table_recognition/datasets/SciTSR',
+    parser.add_argument('--data_dir', type=str, default='/data/rudra/table_structure_recognition/datasets/SciTSR_25',
                         help='data directory')
 
     # Data processing arguments
@@ -58,6 +58,20 @@ def scitsr_params():
                         help='whether to jitter position of cell text bounding box')
     parser.add_argument('--new_imglist', type=bool, default=False,
                         help='whether to create a new imglist or use existing one if it exists')
+
+    parser.add_argument('--padding', type=bool, default=True,
+                        help='whether to pad tokens or not')
+    parser.add_argument('--padding_value', type=float, default=-1.0,
+                        help='padding value for creating equal sequence length (number of tokens aka cells) for each table')
+    parser.add_argument('--padding_length', type=int, default=25,
+                        help='padding to create equal sequence length')
+
+    # Params for imposing rules to create sets
+    parser.add_argument('--rules_constraint', type=str, default='naive_gaussian',
+                        help='the rule being applied to create sets')
+    
+    # Params for naive_gaussian rule
+    
 
     opt = parser.parse_args()
 
@@ -137,6 +151,8 @@ def base_params():
                         help='defining kurtosis of each of the isotropic gaussian distribution')
 
     # Transformer model params
+    parser.add_argument('--transformer', type=bool, default=True,
+                        help='whether to use the transformer model')
     parser.add_argument('--num_encoder_layers', type=int, default=2,
                         help='number of encoder layers in the transformer model')
     parser.add_argument('--transformer_norm', type=str, default=None,
@@ -144,6 +160,16 @@ def base_params():
     parser.add_argument('--num_attn_heads', type=int, default=2,
                         help='number of attention heads in each of the encoder layers')
     
+    # Set transformer model params
+    parser.add_argument('--set_transformer', type=bool, default=False,
+                        help='whether to use set transformer model')
+    parser.add_argument('--num_set_inds', type=int, default=32,
+                        help='number of induced indices for set transformer')
+    parser.add_argument('--num_set_attn_heads', type=int, default=4, 
+                        help='number of attention heads for set transformer model')
+    parser.add_argument('--num_set_hidden_features', type=int, default=128,
+                        help='number of hidden features for the set transformer model')
+
     opt = parser.parse_args()
 
     return opt
@@ -159,7 +185,7 @@ def trainer_params():
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
-    parser.add_argument('--device', type=str, default='cpu',
+    parser.add_argument('--device', type=str, default='cuda',
                         help='device to run the code on cuda | cpu')
 
     # Training type arguments for GFTE variants
@@ -181,11 +207,13 @@ def trainer_params():
                         help='dataset to be used for evaluating and benchmarking models icdar2013 | icdar2019')
     parser.add_argument('--workers', type=int, default=0,
                         help='number of dataloading workers, not an option in torch_geometric')
-    parser.add_argument('--batch_size', type=int, default=1,
+    parser.add_argument('--batch_size', type=int, default=5,
                         help='input batch size')
+    parser.add_argument('--batched', type=bool, default=True,
+                        help='whether models are processing samples in a batched manner or one at a time.')
 
     # Training arguments
-    parser.add_argument('--num_epochs', type=int, default=1000, 
+    parser.add_argument('--num_epochs', type=int, default=100, 
                         help='number of epochs to train for')
 
     parser.add_argument('--lr', type=float, default=1e-3,

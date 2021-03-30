@@ -1,3 +1,9 @@
+"""
+Sequences padded to a max length to create batches before being fed
+to the model. The dataloader is different and access to tesor is varied.
+Copying `./trainers/trainer_transformer.py` here and changing dataloader
+access.
+"""
 from __future__ import print_function
 
 import torch
@@ -5,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data 
-from torch_geometric.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
 import os
@@ -17,7 +23,7 @@ from datetime import datetime
 import tqdm
 
 from models.transformer import TbTSR
-from dataloaders.scitsr_transformer import ScitsrDatasetSB
+from dataloaders.scitsr_loader import ScitsrDatasetSB
 from dataloaders.icdar_transformer import Icdar2013DatasetSB, Icdar2019DatasetSB
 from dataloaders.pubtabnet import PubTabNetDataset
 from misc.args import *
@@ -103,7 +109,7 @@ def main(config):
         wandb.log(train_out_dict)
 
         if epoch % trainer_params.val_interval == 0:
-            val_out_dict = eval(model, val_loader, loss_criteria)
+            val_out_dict = eval(model, val_loader, loss_criteria, trainer_params)
 
             # Log information
             wandb.log(val_out_dict)
@@ -137,12 +143,12 @@ def train(model, optimizer, train_loader, loss_criteria, trainer_params):
 
     for idx, data in enumerate(train_loader):
         # Perform single train step
-        data = data.to(DEVICE)
+        for key, value in data.items():
+                data[key] = data[key].to(DEVICE)
 
         row_pred, col_pred = model(data)
-        row_pred, col_pred = row_pred[:, 0], col_pred[:, 0]
-        row_loss = loss_function(row_pred, data.y_row, loss_criteria)
-        col_loss = loss_function(col_pred, data.y_col, loss_criteria)
+        row_loss = loss_function(row_pred.view(trainer_params.batch_size, -1), data['y_row'], loss_criteria)
+        col_loss = loss_function(col_pred.view(trainer_params.batch_size, -1), data['y_col'], loss_criteria)
         # Overall loss
         loss = row_loss + col_loss
         loss.backward()
@@ -150,7 +156,6 @@ def train(model, optimizer, train_loader, loss_criteria, trainer_params):
         # Accumulate gradients for training stability
         # if (idx + 1) % trainer_params.optimizer_accu_steps == 0:
         optimizer.step()
-        # import pdb; pdb.set_trace()
         optimizer.zero_grad()
         
         # Aggregate losses
@@ -171,7 +176,7 @@ def train(model, optimizer, train_loader, loss_criteria, trainer_params):
     return train_out_dict
 
 
-def eval(model, val_loader, loss_criteria):
+def eval(model, val_loader, loss_criteria, trainer_params):
     # Eval loop 
     model.eval()
 
@@ -186,14 +191,14 @@ def eval(model, val_loader, loss_criteria):
 
     with torch.no_grad():
         for idx, data in enumerate(val_loader):
-            data = data.to(DEVICE)
-
-            # import pdb; pdb.set_trace()
-
+            for key, value in data.items():
+                data[key] = data[key].to(DEVICE)
+            
             row_pred, col_pred = model(data)
-            row_pred_l, col_pred_l =  row_pred[:, 0], col_pred[:, 0]
-            row_loss = loss_function(row_pred_l, data.y_row, loss_criteria)
-            col_loss = loss_function(col_pred_l, data.y_col, loss_criteria)
+            row_pred, col_pred = row_pred.view(trainer_params.batch_size, -1), col_pred.view(trainer_params.batch_size, -1)
+            # import pdb; pdb.set_trace()
+            row_loss = loss_function(row_pred, data['y_row'], loss_criteria)
+            col_loss = loss_function(col_pred, data['y_col'], loss_criteria)
             loss = row_loss + col_loss
 
             val_loss += loss.item()
@@ -201,16 +206,16 @@ def eval(model, val_loader, loss_criteria):
             col_loss += col_loss.item()
 
             # Accuracy calculation
-            _, row_pred = F.softmax(row_pred).max(1)
-            _, col_pred = F.softmax(col_pred).max(1)
+            # _, row_pred = F.softmax(row_pred).max(1)
+            # _, col_pred = F.softmax(col_pred).max(1)
 
-            row_label = data.y_row.detach().cpu().numpy()
-            col_label = data.y_col.detach().cpu().numpy()
-            row_pred = row_pred.detach().cpu().numpy()
-            col_pred = col_pred.detach().cpu().numpy()
+            row_label = data['y_row'].detach().cpu().numpy()
+            col_label = data['y_col'].detach().cpu().numpy()
+            # row_pred = row_pred.detach().cpu().numpy()
+            # col_pred = col_pred.detach().cpu().numpy()
 
-            n_correct_row = n_correct_row + (row_label == row_pred).sum()
-            n_correct_col = n_correct_col + (col_label == col_pred).sum()
+            # n_correct_row = n_correct_row + (row_label == row_pred).sum()
+            # n_correct_col = n_correct_col + (col_label == col_pred).sum()
             n_total_row += row_label.shape[0]
             n_total_col += col_label.shape[0]
 

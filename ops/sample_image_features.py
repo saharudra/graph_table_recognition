@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch_geometric.data import DataLoader
 
 import numpy as np
-import numpy_indexed as npi
+# import numpy_indexed as npi
 
 def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=16.0, device='cuda'):
     """

@@ -18,6 +18,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
+from models.modules import ISAB
 
 from models.resnet import resnet18, resnet50, resnext50_32x4d, wide_resnet50_2
 from ops.sample_image_features import sample_box_features
@@ -41,22 +42,28 @@ class TbTSR(nn.Module):
         #                         + self.base_params.num_pos_features
         self.num_expected_features = self.base_params.num_pos_features
 
-        self.encoder_layers = TransformerEncoderLayer(self.num_expected_features, self.base_params.num_attn_heads)
-        self.encoder = TransformerEncoder(self.encoder_layers, self.base_params.num_encoder_layers, self.base_params.transformer_norm) 
-        
+        if self.base_params.transformer:
+            self.encoder_layers = TransformerEncoderLayer(self.num_expected_features, self.base_params.num_attn_heads)
+            self.encoder = TransformerEncoder(self.encoder_layers, self.base_params.num_encoder_layers, self.base_params.transformer_norm) 
+        elif self.base_params.set_transformer:
+            self.encoder = nn.Sequential(
+                ISAB(self.num_expected_features, self.base_params.num_set_hidden_features,
+                     self.base_params.num_set_attn_heads, self.base_params.num_set_inds)
+                # ISAB(self.base_params.num_set_hidden_features, self.base_params.num_set_hidden_features,
+                #      self.base_params.num_set_attn_heads, self.base_params.num_set_inds)
+            )   
+
         # row/col classification heads
         self.lin_row = nn.Sequential(
-            nn.Linear(self.num_expected_features * 2, self.base_params.num_hidden_features),
-            nn.ReLU(inplace=True),
-            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes),
-            nn.Softmax()
+            nn.Linear(self.num_expected_features * 2, self.base_params.num_classes),
+            # nn.ReLU(inplace=True),
+            # nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
         )
 
         self.lin_col = nn.Sequential(
-            nn.Linear(self.num_expected_features * 2, self.base_params.num_hidden_features),
-            nn.ReLU(inplace=True),
-            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes),
-            nn.Softmax()
+            nn.Linear(self.num_expected_features * 2, self.base_params.num_classes),
+            # nn.ReLU(inplace=True),
+            # nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
         )
 
     def get_img_model(self, img_model_params):
@@ -81,7 +88,9 @@ class TbTSR(nn.Module):
             return img_features
 
     def forward(self, data):
-        x, img, pos, nodenum, cell_wh = data.x, data.img, data.pos, data.nodenum, data.cell_wh
+        # x, img, pos, nodenum, cell_wh = data.x, data.img, data.pos, data.nodenum, data.cell_wh
+        x, pos = data['x'], data['pos']
+        # import pdb; pdb.set_trace()
 
         # Get image features
         # img_features_global = self.get_img_features(img)
@@ -94,7 +103,8 @@ class TbTSR(nn.Module):
         # Both x and pos can be passed
         # pos_img_features = torch.cat((pos, img_features_sampled), dim=1)
         # pos_img_features = pos_img_features.unsqueeze(0)
-        pos_features = pos.unsqueeze(0)
+        # Batched processing, uncomment below for singular
+        pos_features = pos
 
         # Transform image and position features
         # transformed_features = self.encoder(pos_img_features)
@@ -102,8 +112,9 @@ class TbTSR(nn.Module):
         transformed_features = self.encoder(pos_features)
 
         # Concatenate transformed features 
-        transformed_features = transformed_features.squeeze(0)
-        paired_transformed_features = pairwise_combinations(transformed_features)
+        # Batched processing, uncomment below for singular
+        # transformed_features = transformed_features.squeeze(0)
+        paired_transformed_features = pairwise_combinations(transformed_features, batched=self.trainer_params.batched)
         
         # Row and Col classification  
         row_pred = self.lin_row(paired_transformed_features)

@@ -2,20 +2,16 @@ import random
 import cv2
 import numpy as np
 import os
-from shapely.geometry import Point, Polygon
 
 import torch
 import torch.nn as nn
-from torch_geometric.data import Data, Dataset, DataLoader
-from torch_scatter import scatter_mean
+from torch.utils.data import Dataset, DataLoader
 import math
 import json
 import csv
 
 from misc.args import scitsr_params
 from ops.utils import resize_image
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 
 class ScitsrDatasetSB(Dataset):
     """
@@ -24,7 +20,7 @@ class ScitsrDatasetSB(Dataset):
     to the transformer.
     """
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
-        super(ScitsrDatasetSB, self).__init__(params, transform, pre_transform)
+        super(ScitsrDatasetSB, self).__init__()
 
         self.params = params
         self.root_path = os.path.join(self.params.data_dir, partition)
@@ -43,20 +39,6 @@ class ScitsrDatasetSB(Dataset):
                 json.dump(self.imglist, wf)
         
         self.img_size = self.params.img_size
-
-    @property
-    def raw_file_names(self):
-        return []
-    
-    @property
-    def processed_file_names(self):
-        return []
-
-    def read_structure(self):
-        return 
-    
-    def reset(self):
-        pass
 
     # Check which images are valid for processing
     def check_all(self):
@@ -208,7 +190,7 @@ class ScitsrDatasetSB(Dataset):
 
         return xt
 
-    def get(self, idx):
+    def __getitem__(self, idx):
         # structs, chunks, img, scaling_params = self.readlabel(idx)
         structs, chunks, img, rescale_params = self.readlabel(idx)
 
@@ -217,12 +199,6 @@ class ScitsrDatasetSB(Dataset):
 
         cl = self.cal_chk_limits(chunks)
 
-        # Transform scale of bounding boxes
-        # SciTSR has bounding box information w.r.t the pdf but doesn't have the exact location
-        # on the pdf. Transform x_min and y_min to 0, 0.
-        # chunks = self.transform_chk_bbox(chunks, cl, scaling_params)
-        # cl = self.cal_chk_limits(chunks)
-        # print(cl)
         x, pos, tbpos, imgpos, cell_wh = [], [], [], [], []
         # offset = []
         structs = self.remove_empty_cell(structs)
@@ -249,35 +225,30 @@ class ScitsrDatasetSB(Dataset):
 
             # Extend tbpos if padding
             tbpos.extend([[-1, -1, -1, -1]] * padding_length)
-        data = Data(x=x, pos=pos)
 
-        y_row = self.cal_all_pair_row_label(data, tbpos)
-        y_col = self.cal_all_pair_col_label(data, tbpos)
-        # y_adjacency = self.cal_adjacency(y_row, y_col)
+        y_row = self.cal_all_pair_row_label(x, tbpos)
+        y_col = self.cal_all_pair_col_label(x, tbpos)
+        
+        sample = {}
+        sample['x'] = x
+        sample['pos'] = pos
+        sample['y_row'] = torch.FloatTensor(y_row)
+        sample['y_col'] = torch.FloatTensor(y_col)
+        sample['chunk_len'] = len(chunks)
 
-        # img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
+        return sample
 
-        data.y_row = torch.FloatTensor(y_row)
-        data.y_col = torch.FloatTensor(y_col)
-        # data.y_adjacency = torch.LongTensor(y_adjacency)
-        # data.img = img
-        # data.imgpos = torch.FloatTensor(imgpos)
-        # data.cell_wh = torch.FloatTensor(cell_wh)
-        # data.nodenum = torch.LongTensor([len(structs)])
-
-        return data
-
-    def cal_all_pair_row_label(self, data, tbpos):
+    def cal_all_pair_row_label(self, x, tbpos):
         y = []
-        for si in range(data.x.shape[0]):
-            for ei in range(si + 1, data.x.shape[0]):
+        for si in range(x.shape[0]):
+            for ei in range(si + 1, x.shape[0]):
                 y.append(self.is_same_row(si, ei, tbpos))
         return y
 
-    def cal_all_pair_col_label(self, data, tbpos):
+    def cal_all_pair_col_label(self, x, tbpos):
         y = []
-        for si in range(data.x.shape[0]):
-            for ei in range(si + 1, data.x.shape[0]):
+        for si in range(x.shape[0]):
+            for ei in range(si + 1, x.shape[0]):
                 y.append(self.is_same_col(si, ei, tbpos))
         return y
 
@@ -288,8 +259,6 @@ class ScitsrDatasetSB(Dataset):
         num_cells = (math.sqrt(4 * 2 * len(row_mat) + 1) + 1) / 2
         for i in range(len(row_mat)):
             pass
-
-
 
     def is_same_row(self, si, ei, tbpos):
         ss, se = tbpos[si][0], tbpos[si][1]
@@ -321,19 +290,9 @@ if __name__ == '__main__':
     from misc.args import *
     
     params = scitsr_params()
-    train_dataset = ScitsrDatasetSB(params)
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-    val_dataset = ScitsrDatasetSB(params, partition='test')
-    val_loader = DataLoader(val_dataset, batch_size=5, shuffle=False)
     print(params)
-    max_num_tokens = 0
-    for idx, data in enumerate(val_loader):
-        print(data)
-    #     pos = data.pos
-    #     curr_num_tokens = pos.shape[0]
-    #     if curr_num_tokens > max_num_tokens:
-    #         max_num_tokens = curr_num_tokens
-    #         max_data = data
-    # print(max_num_tokens) 
-    # print(max_data)   
-    import pdb; pdb.set_trace()
+    train_dataset = ScitsrDatasetSB(params)
+    train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
+    for idx, sample in enumerate(train_loader):
+        print(sample['x'].shape)
+        import pdb; pdb.set_trace()

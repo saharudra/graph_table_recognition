@@ -51,3 +51,14 @@ class ISAB(nn.Module):
     def forward(self, X):
         H = self.mab0(self.I.repeat(X.size(0), 1, 1), X)
         return self.mab1(X, H)
+
+
+if __name__ == '__main__':
+    inp = torch.randn(1, 2000, 8)
+    dim_in = 8
+    dim_out = 128
+    num_heads = 4
+    num_inds = 32
+    net = ISAB(dim_in, dim_out, num_heads, num_inds)
+    out = net(inp)
+    print(out.shape)
