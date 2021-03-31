@@ -20,6 +20,9 @@ class ScitsrDatasetSB(Dataset):
     Creating sets and graphs with edges between nodes 
     identified as part of said set. 
     Output sets as batches.
+
+    Generates both row graphs and column graphs based on the rules
+    for row and column set generation.
     """
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
         super(ScitsrDatasetSB, self).__init__()
@@ -236,22 +239,29 @@ class ScitsrDatasetSB(Dataset):
         pos = torch.FloatTensor(pos)
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
         # Obtain edges from set creation function using positions
-        edge_index = self.rule_based_set_generation(pos, img)
-        data = Data(x=x, pos=pos, edge_index=edge_index)
+        row_edge_index, col_edge_index = self.rule_based_set_generation(pos, img)
+        data_row = Data(x=x, pos=pos, edge_index=row_edge_index)
+        data_col = Data(x=x, pos=pos, edge_index=col_edge_index)
         
-        # y_row = self.cal_row_label(data, tbpos)
-        # y_col = self.cal_col_label(data, tbpos)
+        y_row = self.cal_row_label(data_row, tbpos)
+        y_col = self.cal_col_label(data_col, tbpos)
         # y_adj = self.cal_adj_label(data, tbpos)
 
-        # data.y_row = torch.LongTensor(y_row)
-        # data.y_col = torch.LongTensor(y_col)
+        data.y_row = torch.LongTensor(y_row)
+        data.y_col = torch.LongTensor(y_col)
         # data.y_adj = torch.LongTensor(y_adj)
     
-        # return data
+        return data_row, data_col
 
     def rule_based_set_generation(self, pos, img):
         if self.params.rules_constraint == 'naive_gaussian':
             return naive_gaussian(pos, img, self.params)
+
+    def cal_row_label(data, tbpos):
+        pass
+
+    def cal_col_label(data, tbpos):
+        pass
 
 
 
@@ -264,7 +274,8 @@ if __name__ == '__main__':
     train_dataset = ScitsrDatasetSB(params)
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
     for idx, data in enumerate(train_loader):
-        print(data)
+        data_row, data_col = data
+        print(data_row)
         import pdb; pdb.set_trace()
 
 

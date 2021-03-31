@@ -59,7 +59,30 @@ def naive_gaussian(pos, img, params):
     # Visualize adjacency matrices
     # visualize_adjacency_matrices(row_adj_mat, col_adj_mat, img, pos)
 
-    import pdb; pdb.set_trace()
+    # Convert adjacency matrix to edge index for pytorch geometric dataloader
+    row_edge_index, col_edge_index = adj_mat_2_edge_index(row_adj_mat), adj_mat_2_edge_index(col_adj_mat)
+
+    return row_edge_index, col_edge_index
+
+
+def adj_mat_2_edge_index(adj_mat):
+    """
+    Converts adjacency matrix to edge index that can be ingested by
+    pytorch geometric dataloader.
+    Creating edge indexes for an undirected graph for the TSR problem at 
+    hand.
+    """
+    edge_index = []
+    rows, cols = adj_mat.shape
+    
+    for rid in range(rows):
+        for cid in range(cols):
+            if adj_mat[rid, cid] == 1:
+                edge_index.append([rid, cid])
+    edge_index = torch.from_numpy(np.asarray(edge_index))
+    edge_index = edge_index.t().contiguous()
+
+    return edge_index
 
 
 def visualize_adjacency_matrices(row_adj_mat, col_adj_mat, img, pos):
