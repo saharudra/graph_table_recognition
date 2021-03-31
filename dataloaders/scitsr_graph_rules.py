@@ -15,7 +15,7 @@ from misc.args import scitsr_params
 from ops.rules import naive_gaussian
 from ops.utils import resize_image
 
-class ScitsrDatasetSB(Dataset):
+class ScitsrGraphRules(Dataset):
     """
     Creating sets and graphs with edges between nodes 
     identified as part of said set. 
@@ -25,7 +25,7 @@ class ScitsrDatasetSB(Dataset):
     for row and column set generation.
     """
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
-        super(ScitsrDatasetSB, self).__init__()
+        super(ScitsrGraphRules, self).__init__()
 
         self.params = params
         self.root_path = os.path.join(self.params.data_dir, partition)
@@ -297,7 +297,7 @@ if __name__ == '__main__':
     
     params = scitsr_params()
     print(params)
-    train_dataset = ScitsrDatasetSB(params)
+    train_dataset = ScitsrGraphRules(params)
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
     for idx, data in enumerate(train_loader):
         data_row, data_col = data
