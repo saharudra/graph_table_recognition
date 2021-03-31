@@ -247,9 +247,10 @@ class ScitsrDatasetSB(Dataset):
         y_col = self.cal_col_label(data_col, tbpos)
         # y_adj = self.cal_adj_label(data, tbpos)
 
-        data.y_row = torch.LongTensor(y_row)
-        data.y_col = torch.LongTensor(y_col)
-        # data.y_adj = torch.LongTensor(y_adj)
+        data_row.y = torch.LongTensor(y_row)
+        data_col.y = torch.LongTensor(y_col)
+        data_row.img = img
+        data_col.img = img
     
         return data_row, data_col
 
@@ -257,16 +258,41 @@ class ScitsrDatasetSB(Dataset):
         if self.params.rules_constraint == 'naive_gaussian':
             return naive_gaussian(pos, img, self.params)
 
-    def cal_row_label(data, tbpos):
-        pass
+    def cal_row_label(self, data, tbpos):
+        edges = data.edge_index
+        y = []
+        for i in range(edges.size()[1]):
+            y.append(self.if_same_row(edges[0, i], edges[1, i], tbpos))
+        return y
 
-    def cal_col_label(data, tbpos):
-        pass
+    def cal_col_label(self, data, tbpos):
+        edges = data.edge_index
+        y = []
+        for i in range(edges.size()[1]):
+            y.append(self.if_same_col(edges[0, i], edges[1, i], tbpos))
+        return y
 
+    def if_same_row(self, si, ti, tbpos):
+        ss, se = tbpos[si][0], tbpos[si][1]
+        ts, te = tbpos[ti][0], tbpos[ti][1]
+        if (ss >= ts and se <= te):
+            return 1
+        if (ts >= ss and te <= se):
+            return 1
+        return 0
+
+    def if_same_col(self, si, ti, tbpos):
+        ss, se = tbpos[si][2], tbpos[si][3]
+        ts, te = tbpos[ti][2], tbpos[ti][3]
+        if (ss >= ts and se <= te):
+            return 1
+        if (ts >= ss and te <= se):
+            return 1
+        return 0
 
 
 if __name__ == '__main__':
-
+    import matplotlib.pyplot as plt
     from misc.args import *
     
     params = scitsr_params()
@@ -275,7 +301,18 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
     for idx, data in enumerate(train_loader):
         data_row, data_col = data
-        print(data_row)
+        import pdb; pdb.set_trace()
+        img = data_row.img
+        img = torch.squeeze(img, dim=0).permute(1, 2, 0).numpy()
+        pos = data_row.pos.numpy()
+
+        x_scatter = pos[:, 0] * 1024
+        y_scatter = pos[:, 1] * 1024
+        # plot image and overlay scatter plot
+        fig, ax = plt.subplots()
+        ax.scatter(x_scatter, y_scatter, c='green')
+        ax.imshow(img)
+        plt.show()
         import pdb; pdb.set_trace()
 
 
