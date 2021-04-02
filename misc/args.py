@@ -201,16 +201,16 @@ def trainer_params():
                         help='device to run the code on cuda | cpu')
 
     # Training type arguments for GFTE variants
-    parser.add_argument('--maj_ver', type=str, default='2',
-                        help='major model version to train: 1 | 2 ...')
-    parser.add_argument('--min_ver', type=str, default='c',
-                        help='minor model version to train 2."a" ...: a | b | c | ...')
-    parser.add_argument('--row_only', type=bool, default=False,
-                        help='trains above model with row only loss and reports row acc.')
-    parser.add_argument('--col_only', type=bool, default=False,
-                        help='trains above model with col only loss and reports col acc.')
-    parser.add_argument('--multi_task', type=bool, default=False,
-                        help='trains above model with multi-task loss and reports row/col acc.')
+    # parser.add_argument('--maj_ver', type=str, default='2',
+    #                     help='major model version to train: 1 | 2 ...')
+    # parser.add_argument('--min_ver', type=str, default='c',
+    #                     help='minor model version to train 2."a" ...: a | b | c | ...')
+    # parser.add_argument('--row_only', type=bool, default=False,
+    #                     help='trains above model with row only loss and reports row acc.')
+    # parser.add_argument('--col_only', type=bool, default=False,
+    #                     help='trains above model with col only loss and reports col acc.')
+    # parser.add_argument('--multi_task', type=bool, default=False,
+    #                     help='trains above model with multi-task loss and reports row/col acc.')
 
     # Dataloader arguments
     parser.add_argument('--dataset', type=str, default='scitsr',
@@ -225,9 +225,13 @@ def trainer_params():
                         help='whether models are processing samples in a batched manner or one at a time.')
 
     # Training arguments
+    # Lenth of trainingarguments
     parser.add_argument('--num_epochs', type=int, default=100, 
                         help='number of epochs to train for')
+    parser.add_argument('--early_stopping', type=bool, default=False,
+                        help='whether to perform early_stopping')
 
+    # Learning rate arguments
     parser.add_argument('--lr', type=float, default=1e-3,
                         help='initial learning rate for training')
     parser.add_argument('--schedule_lr', type=bool, default=True,
@@ -243,6 +247,7 @@ def trainer_params():
     parser.add_argument('--min_lr', type=float, default=1e-5,
                         help='minimum lr for learning rate scheduling')
 
+    # Optimizer arguments
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='optimizer to use: adam | adadelta | rmsprop')
     parser.add_argument('--optimizer_accu_steps', type=int, default=64,
@@ -252,6 +257,13 @@ def trainer_params():
     parser.add_argument('--beta2', type=float, default=0.999,
                         help='beta2 for adam optimizer')
 
+    # Loss arguments
+    parser.add_argument('--loss_criteria', type=str, default='bce_logits',
+                        help='loss criteria to be used; bce_logits | nll | multi-label')
+    parser.add_argument('--class_weight', type=float, default=5.0,
+                        help='weigtage applied to the positive class as more 1s than 0s')
+
+    # Logging arguments
     parser.add_argument('--val_interval', type=int, default=5,
                         help='interval at which validation will be performed and logged')
     parser.add_argument('--save_interval', type=int, default=1,

@@ -14,16 +14,17 @@ import json
 import random
 import wandb
 from datetime import datetime
-from tqdm import tqdm
+from tqdm import trange
 
 from models.graph_rules import GraphRulesSingleRelationship, GraphRulesMultiLabel, GraphRulesMultiTask
 from dataloaders.scitsr_graph_rules import ScitsrGraphRules
-from misc.args import scitsr_params, base_params
+from misc.args import scitsr_params, base_params, trainer_params
 from ops.misc import weights_init, mkdir_p
 
 def main(config):
     dataset_params = config['dataset_params']
     base_params = config['base_params']
+    trainer_params = config['trainer_params']
 
     # Define dataloader
     train_dataset = ScitsrGraphRules(dataset_params, partition='train')
@@ -78,7 +79,7 @@ def main(config):
     if trainer_params.loss_criteria == 'nll':
         loss_criteria = nn.NLLLoss()
     elif trainer_params.loss_criteria == 'bce_logits':
-        weight_tensor = torch.Tensor([5]).to(DEVICE)
+        weight_tensor = torch.Tensor([trainer_params.class_weight]).to(DEVICE)
         loss_criteria = nn. BCEWithLogitsLoss(pos_weight=weight_tensor)
 
     # Watch model
@@ -95,7 +96,7 @@ def main(config):
 
     # Outer training loop
     print("$$$ STARTING TRAINING LOOP $$$")
-    for epoch in range(trainer_params.num_epochs.num_epochs):
+    for epoch in range(trainer_params.num_epochs):
         with trange(len(train_loader)) as t:
             # Train a single pass of the model
             if base_params.gr_single_relationship:
@@ -143,7 +144,7 @@ def main(config):
 
             t_postfix_dict = {
                 'train_loss': train_out_dict['train_loss'],
-                'val_loss': eval_out_dict['val_loss']
+                'val_loss': eval_out_dict['val_loss'],
                 'val_acc': eval_out_dict['val_acc']
             }
             t.set_postfix(t_postfix_dict)
@@ -282,19 +283,24 @@ def eval_mt(model, val_loader, loss_criteria):
 
 def loss_function(logits, gt, loss_criteria, task):
     if task == 'sr':
-        # Single relationship loss calculation
+        # Single Relationship loss calculation
+        loss = loss_criteria(logits, gt)
 
     elif task == 'ml':
         # Multi-label loss calculation
+        raise NotImplementedError
 
     elif task == 'mt':
         # Multi-task loss calculation
+        raise NotImplementedError
 
+    return loss
 
 if __name__ == '__main__':
     # Get argument dictionaries
     base_params = base_params()
-    dataset_params = dataset_params()
+    dataset_params = scitsr_params()
+    trainer_params = trainer_params()
 
     # Seed things
     torch.manual_seed(trainer_params.seed)
@@ -336,6 +342,8 @@ if __name__ == '__main__':
 
     namespace_config_dict = {
                                 'dataset_params': dataset_params,
-                                'base_params': base_params
+                                'base_params': base_params,
+                                'trainer_params': trainer_params
                             }
                             
+    main(config=namespace_config_dict)
