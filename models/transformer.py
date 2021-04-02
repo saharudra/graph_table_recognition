@@ -104,7 +104,7 @@ class TbTSR(nn.Module):
         # pos_img_features = torch.cat((pos, img_features_sampled), dim=1)
         # pos_img_features = pos_img_features.unsqueeze(0)
         # Batched processing, uncomment below for singular
-        pos_features = pos
+        # pos_features = pos.unsqueeze(0)
 
         # Transform image and position features
         # transformed_features = self.encoder(pos_img_features)
@@ -119,6 +119,7 @@ class TbTSR(nn.Module):
         # Row and Col classification  
         row_pred = self.lin_row(paired_transformed_features)
         col_pred = self.lin_col(paired_transformed_features)
+        import pdb; pdb.set_trace()
 
         return row_pred, col_pred
 

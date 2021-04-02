@@ -299,7 +299,7 @@ if __name__ == '__main__':
     params = scitsr_params()
     print(params)
     train_dataset = ScitsrGraphRules(params)
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
     for idx, data in enumerate(train_loader):
         data_row, data_col = data
         import pdb; pdb.set_trace()
