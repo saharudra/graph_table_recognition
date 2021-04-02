@@ -154,44 +154,141 @@ def main(config):
 
 
 def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria):
+    """
+    Single Relationship: Separate models trained for row/col relationships
+    """
     # Set model to train mode
     row_model.train()
     col_model.train()
+
+    # Initialize losses to be monitored
+    train_loss = 0.0
+    row_loss = 0.0
+    col_loss = 0.0
+
+    for idx, data in enumerate(train_loader):
+        # Perform single step of training
+        optimizer.zero_grad()
+        row_data, col_data = data
+        row_data = row_data.to(DEVICE)
+        col_data = col_data.to(DEVICE)
+
+        # Gather model output
+        row_logits = row_model(row_data)
+        col_logits = col_model(col_data)
+
+        # Compute individual model losses
+        batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
+        batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
+
+        # Update models and optimizers
+        batch_row_loss.backward()
+        batch_row_optimizer.step()
+
+        batch_col_loss.backward()
+        batch_col_optimizer.step()
+
+        # Aggregate losses
+        row_loss += batch_row_loss.item()
+        col_loss += batch_col_loss.item()
+        train_loss += (batch_row_loss.item() + batch_col_loss.item())
+
+    train_loss /= len(train_loader.dataset)
+    row_loss /= len(train_loader.dataset)
+    col_loss /= len(train_loader.dataset)
+
+    out_dict = {
+        'train_loss': train_loss,
+        'row_loss': row_loss,
+        'col_loss': col_loss
+    }
+
+    return out_dict
 
 
 def train_ml(model, optimizer, train_loader, loss_criteria):
     """
     Multi-label: Model produces all of the labels together
     """
-    # Set model to train()
-    model.train()
-
-    epoch_loss = 0.0
-
-    # Train loop for a single pass on the dataset
-    for idx, data in enumerate(train_loader):
-        # Perform single train step
-        optimizer.zero_grad()
-        data = data.to(DEVICE)
-
+    raise NotImplementedError
+        
 
 def train_mt(model, optimizer, train_loader, loss_criteria):
     """
     Multi-task: Model produces separate row and col predictions
     """
-    pass
+    raise NotImplementedError
 
 
 def eval_sr(row_model, col_model, val_loader, loss_criteria):
-    pass
+    """
+    Evaluation of single relationship models
+    """
+    row_model.eval()
+    col_model.eval()
+
+    val_loss = 0.0
+    val_row_loss = 0.0
+    val_col_loss = 0.0
+    val_acc = 0.0
+    val_F1 = 0.0
+    val_precision = 0.0
+    val_recall = 0.0
+
+    with torch.no_grad():
+        for idx, data in enumerate(val_loader):
+            row_data, col_data = data
+            row_data = row_data.to(DEVICE)
+            col_data = col_data.to(DEVICE)  
+            
+            row_logits = row_model(row_data)
+            col_logits = col_model(col_data)
+
+            batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
+            batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
+
+            val_loss += (batch_row_loss.item() + batch_col_loss.item())
+            val_row_loss += batch_row_loss.item()
+            val_col_loss += batch_col_loss.item()
+
+            # TODO: Calculate Accuracy for row/col classification
+            # TODO: Calculate Precision, Recall and F1 Score for cell adjacency
+
+    val_loss /= len(val_loader.dataset)
+    val_row_loss /= len(val_loader.dataset)
+    val_col_loss /= len(val_loader.dataset)
+
+    out_dict = {
+        'val_loss': val_loss,
+        'val_acc': val_acc,
+        'val_F1': val_F1,
+        'val_precision': val_precision,
+        'val_recall': val_recall,
+        'val_row_loss': val_row_loss,
+        'val_col_loss': val_col_loss
+    }
+
+    return out_dict
+
 
 
 def eval_ml(model, val_loader, loss_criteria):
-    pass
+    raise NotImplementedError
 
 
 def eval_mt(model, val_loader, loss_criteria):
-    pass
+    raise NotImplementedError
+
+
+def loss_function(logits, gt, loss_criteria, task):
+    if task == 'sr':
+        # Single relationship loss calculation
+
+    elif task == 'ml':
+        # Multi-label loss calculation
+
+    elif task == 'mt':
+        # Multi-task loss calculation
 
 
 if __name__ == '__main__':

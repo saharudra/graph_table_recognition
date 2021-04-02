@@ -241,19 +241,29 @@ class ScitsrGraphRules(Dataset):
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
         # Obtain edges from set creation function using positions
         row_edge_index, col_edge_index = self.rule_based_set_generation(pos, img)
-        data_row = Data(x=x, pos=pos, edge_index=row_edge_index)
-        data_col = Data(x=x, pos=pos, edge_index=col_edge_index)
-        
-        y_row = self.cal_row_label(data_row, tbpos)
-        y_col = self.cal_col_label(data_col, tbpos)
-        # y_adj = self.cal_adj_label(data, tbpos)
 
-        data_row.y = torch.LongTensor(y_row)
-        data_col.y = torch.LongTensor(y_col)
-        data_row.img = img
-        data_col.img = img
-    
-        return data_row, data_col
+        if self.params.gr_single_relationship:
+            data_row = Data(x=x, pos=pos, edge_index=row_edge_index)
+            data_col = Data(x=x, pos=pos, edge_index=col_edge_index)
+            
+            y_row = self.cal_row_label(data_row, tbpos)
+            y_col = self.cal_col_label(data_col, tbpos)
+            # y_adj = self.cal_adj_label(data, tbpos)
+
+            data_row.y = torch.LongTensor(y_row)
+            data_col.y = torch.LongTensor(y_col)
+            data_row.img = img
+            data_col.img = img
+
+            return data_row, data_col
+
+        elif self.params.gr_multi_label:
+            # Create multi-label dataset
+            raise NotImplementedError
+
+        elif self.params.gr_multi_task:
+            # Create multi-task datase
+            raise NotImplementedError
 
     def rule_based_set_generation(self, pos, img):
         if self.params.rules_constraint == 'naive_gaussian':
