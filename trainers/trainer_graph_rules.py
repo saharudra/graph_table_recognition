@@ -100,8 +100,10 @@ def main(config):
             # Train a single pass of the model
             if base_params.gr_single_relationship:
                 train_out_dict = train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria)   
-            else:
-                train_out_dict = train(model, optimizer, train_loader, loss_criteria)
+            elif base_params.gr_multi_label:
+                train_out_dict = train_ml(model, optimizer, train_loader, loss_criteria)
+            elif base_params.gr_multi_task:
+                train_out_dict = train_mt(model, optimizer, train_loader, loss_criteria)
             
             # Log training info
             wandb.log(train_out_dict)
@@ -110,9 +112,10 @@ def main(config):
             if epoch % trainer_params.val_interval == 0:
                 if base_params.gr_single_relationship:
                     eval_out_dict = eval_sr(row_model, col_model, val_loader, loss_criteria)
-                    
-                else:
-                    eval_out_dict = eval(model, val_loader, loss_criteria)
+                elif base_params.gr_multi_label:
+                    eval_out_dict = eval_ml(model, val_loader, loss_criteria)
+                elif base_params.gr_multi_task:
+                    eval_out_dict = eval_mt(model, val_loader, loss_criteria)
                 
                 wandb.log(eval_out_dict)
 
@@ -151,10 +154,31 @@ def main(config):
 
 
 def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria):
-    pass
+    # Set model to train mode
+    row_model.train()
+    col_model.train()
 
 
-def train(model, optimizer, train_loader, loss_criteria):
+def train_ml(model, optimizer, train_loader, loss_criteria):
+    """
+    Multi-label: Model produces all of the labels together
+    """
+    # Set model to train()
+    model.train()
+
+    epoch_loss = 0.0
+
+    # Train loop for a single pass on the dataset
+    for idx, data in enumerate(train_loader):
+        # Perform single train step
+        optimizer.zero_grad()
+        data = data.to(DEVICE)
+
+
+def train_mt(model, optimizer, train_loader, loss_criteria):
+    """
+    Multi-task: Model produces separate row and col predictions
+    """
     pass
 
 
@@ -162,7 +186,11 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
     pass
 
 
-def eval(model, val_loader, loss_criteria):
+def eval_ml(model, val_loader, loss_criteria):
+    pass
+
+
+def eval_mt(model, val_loader, loss_criteria):
     pass
 
 
