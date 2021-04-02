@@ -12,7 +12,7 @@ import json
 import csv
 
 from misc.args import scitsr_params
-from ops.rules import naive_gaussian
+from ops.rules import GraphRules
 from ops.utils import resize_image
 
 class ScitsrGraphRules(Dataset):
@@ -28,6 +28,7 @@ class ScitsrGraphRules(Dataset):
         super(ScitsrGraphRules, self).__init__()
 
         self.params = params
+        self.rules = GraphRules(self.params)
         self.root_path = os.path.join(self.params.data_dir, partition)
 
         # Create a list of images as a json file
@@ -256,7 +257,7 @@ class ScitsrGraphRules(Dataset):
 
     def rule_based_set_generation(self, pos, img):
         if self.params.rules_constraint == 'naive_gaussian':
-            return naive_gaussian(pos, img, self.params)
+            return self.rules.naive_gaussian(pos, img)
 
     def cal_row_label(self, data, tbpos):
         edges = data.edge_index
