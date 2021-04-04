@@ -30,42 +30,42 @@ def main(config):
     train_dataset = ScitsrGraphRules(dataset_params, partition='train')
     train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True)
 
-    val_dataset = ScitsrGraphRules(dataset_params, partition='test')
+    val_dataset = ScitsrGraphRules(dataset_params, partition='val')
     val_loader = DataLoader(val_dataset, batch_size=trainer_params.batch_size, shuffle=False)
 
     # Define model and initialize weights
-    if base_params.gr_single_relationship:
+    if dataset_params.gr_single_relationship:
         row_model = GraphRulesSingleRelationship(base_params)
         col_model = GraphRulesSingleRelationship(base_params)
         row_model.apply(weights_init)
         col_model.to(DEVICE)
         col_model.apply(weights_init)
         row_model.to(DEVICE)
-    elif base_params.gr_multi_label:
+    elif dataset_params.gr_multi_label:
         model = GraphRulesMultiLabel(base_params)
         model.to(DEVICE)
         model.apply(weights_init)
-    elif base_params.gr_multi_task:
+    elif dataset_params.gr_multi_task:
         model = GraphRulesMultiTask(base_params)
         model.to(DEVICE)
         model.apply(weights_init)
 
     # Define optimizer and learning rate scheduler
-    if trainer_params.optimizer == 'adam' and not base_params.gr_single_relationship:
+    if trainer_params.optimizer == 'adam' and not dataset_params.gr_single_relationship:
         optimizer = optim.Adam(model.parameters(), lr=trainer_params.lr,
                                 betas=(trainer_params.beta1, trainer_params.beta2))
-    elif trainer_params.optimizer == 'adam' and base_params.gr_single_relationship:
+    elif trainer_params.optimizer == 'adam' and dataset_params.gr_single_relationship:
         row_optimizer = optim.Adam(row_model.parameters(), lr=trainer_params.lr,
                                 betas=(trainer_params.beta1, trainer_params.beta2))
         col_optimizer = optim.Adam(col_model.parameters(), lr=trainer_params.lr,
                                 betas=(trainer_params.beta1, trainer_params.beta2))
 
-    if trainer_params.schedule_lr and not base_params.gr_single_relationship:
+    if trainer_params.schedule_lr and not dataset_params.gr_single_relationship:
         lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=trainer_params.lr_patience,
                                             factor=trainer_params.lr_reduce_factor, verbose=True, 
                                             mode=trainer_params.lr_schedule_mode,
                                             cooldown=trainer_params.lr_cooldown, min_lr=trainer_params.min_lr)
-    elif trainer_params.optimizer == 'adam' and base_params.gr_single_relationship:
+    elif trainer_params.optimizer == 'adam' and dataset_params.gr_single_relationship:
         row_lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(row_optimizer, patience=trainer_params.lr_patience,
                                             factor=trainer_params.lr_reduce_factor, verbose=True, 
                                             mode=trainer_params.lr_schedule_mode,
@@ -83,7 +83,7 @@ def main(config):
         loss_criteria = nn. BCEWithLogitsLoss(pos_weight=weight_tensor)
 
     # Watch model
-    # if base_params.gr_single_relationship:
+    # if dataset_params.gr_single_relationship:
     #     wandb.watch(row_model)
     #     wandb.watch(col_model)
     # else:
@@ -95,34 +95,35 @@ def main(config):
     best_epoch = -1
 
     # Outer training loop
+    print('LENGTH OF TRAINING DATASET: {}, VALIDATION DATASET: {}'.format(len(train_loader), len(val_loader)))
     print("$$$ STARTING TRAINING LOOP $$$")
     for epoch in range(trainer_params.num_epochs):
         with trange(len(train_loader)) as t:
             # Train a single pass of the model
-            if base_params.gr_single_relationship:
+            if dataset_params.gr_single_relationship:
                 train_out_dict = train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria)   
-            elif base_params.gr_multi_label:
+            elif dataset_params.gr_multi_label:
                 train_out_dict = train_ml(model, optimizer, train_loader, loss_criteria)
-            elif base_params.gr_multi_task:
+            elif dataset_params.gr_multi_task:
                 train_out_dict = train_mt(model, optimizer, train_loader, loss_criteria)
             
             # Log training info
-            wandb.log(train_out_dict)
+            # wandb.log(train_out_dict)
 
             # Perform evaluation at intervals
             if epoch % trainer_params.val_interval == 0:
-                if base_params.gr_single_relationship:
+                if dataset_params.gr_single_relationship:
                     eval_out_dict = eval_sr(row_model, col_model, val_loader, loss_criteria)
-                elif base_params.gr_multi_label:
+                elif dataset_params.gr_multi_label:
                     eval_out_dict = eval_ml(model, val_loader, loss_criteria)
-                elif base_params.gr_multi_task:
+                elif dataset_params.gr_multi_task:
                     eval_out_dict = eval_mt(model, val_loader, loss_criteria)
                 
-                wandb.log(eval_out_dict)
+                # wandb.log(eval_out_dict)
 
             # Schedule learning rate
             if trainer_params.schedule_lr:
-                if base_params.gr_single_relationship:
+                if dataset_params.gr_single_relationship:
                     row_lr_scheduler.step(train_out_dict['row_loss'])
                     col_lr_scheduler.step(train_out_dict['col_loss'])
                 else:
@@ -131,7 +132,7 @@ def main(config):
             # Save models based on accuracy/F1 score
             if epoch % trainer_params.val_interval == 0:
                 if eval_out_dict['val_acc'] > best_accuracy:
-                    if base_params.gr_single_relationship:
+                    if dataset_params.gr_single_relationship:
                         row_model_path = log_path + os.sep + "row_only_net_{}_best_so_far.pth".format(epoch)
                         col_model_path = log_path + os.sep + "col_only_net_{}_best_sor_far.pth".format(epoch)
                         torch.save(row_model.state_dict(), row_model_path)
@@ -169,25 +170,27 @@ def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, l
 
     for idx, data in enumerate(train_loader):
         # Perform single step of training
-        optimizer.zero_grad()
+        row_optimizer.zero_grad()
+        col_optimizer.zero_grad()
         row_data, col_data = data
         row_data = row_data.to(DEVICE)
         col_data = col_data.to(DEVICE)
 
-        # Gather model output
-        row_logits = row_model(row_data)
-        col_logits = col_model(col_data)
+        # Gather model output and convert into a row tensor same as the ground truth
+        row_logits = row_model(row_data).view(-1)
+        col_logits = col_model(col_data).view(-1)
 
         # Compute individual model losses
+        # import pdb; pdb.set_trace()
         batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
         batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
 
         # Update models and optimizers
         batch_row_loss.backward()
-        batch_row_optimizer.step()
+        row_optimizer.step()
 
         batch_col_loss.backward()
-        batch_col_optimizer.step()
+        col_optimizer.step()
 
         # Aggregate losses
         row_loss += batch_row_loss.item()
@@ -235,6 +238,10 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
     val_F1 = 0.0
     val_precision = 0.0
     val_recall = 0.0
+    n_correct_row = 0.0
+    n_total_row = 0.0
+    n_correct_col = 0.0
+    n_total_col = 0.0
 
     with torch.no_grad():
         for idx, data in enumerate(val_loader):
@@ -242,8 +249,8 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             row_data = row_data.to(DEVICE)
             col_data = col_data.to(DEVICE)  
             
-            row_logits = row_model(row_data)
-            col_logits = col_model(col_data)
+            row_logits = row_model(row_data).view(-1)
+            col_logits = col_model(col_data).view(-1)
 
             batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
             batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
@@ -252,23 +259,43 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             val_row_loss += batch_row_loss.item()
             val_col_loss += batch_col_loss.item()
 
-            # TODO: Calculate Accuracy for row/col classification
+            # Calculate accuracy
+            _, row_pred = F.softmax(row_logits.view(-1, 1)).max(1)
+            _, col_pred = F.softmax(col_logits.view(-1, 1)).max(1)
+            
+            row_label = row_data.y.detach().cpu().numpy()
+            col_label = col_data.y.detach().cpu().numpy()
+
+            row_pred = row_pred.detach().cpu().numpy()
+            col_pred = col_pred.detach().cpu().numpy()
+
+            n_correct_row = n_correct_row + (row_label == row_pred).sum()
+            n_correct_col = n_correct_col + (col_label == col_pred).sum()
+            n_total_row += row_label.shape[0]
+            n_total_col += col_label.shape[0]
+
             # TODO: Calculate Precision, Recall and F1 Score for cell adjacency
 
     val_loss /= len(val_loader.dataset)
     val_row_loss /= len(val_loader.dataset)
     val_col_loss /= len(val_loader.dataset)
 
+    row_acc = n_correct_row / n_total_row
+    col_acc = n_correct_col / n_total_col
+    val_acc = 0.5 * (row_acc + col_acc)
+
     out_dict = {
         'val_loss': val_loss,
         'val_acc': val_acc,
+        'row_acc': row_acc,
+        'col_acc': col_acc,
         'val_F1': val_F1,
         'val_precision': val_precision,
         'val_recall': val_recall,
         'val_row_loss': val_row_loss,
         'val_col_loss': val_col_loss
     }
-
+    import pdb; pdb.set_trace()
     return out_dict
 
 
@@ -345,5 +372,5 @@ if __name__ == '__main__':
                                 'base_params': base_params,
                                 'trainer_params': trainer_params
                             }
-                            
+
     main(config=namespace_config_dict)

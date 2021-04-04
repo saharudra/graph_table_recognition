@@ -250,8 +250,8 @@ class ScitsrGraphRules(Dataset):
             y_col = self.cal_col_label(data_col, tbpos)
             # y_adj = self.cal_adj_label(data, tbpos)
 
-            data_row.y = torch.LongTensor(y_row)
-            data_col.y = torch.LongTensor(y_col)
+            data_row.y = torch.FloatTensor(y_row)
+            data_col.y = torch.FloatTensor(y_col)
             data_row.img = img
             data_col.img = img
 

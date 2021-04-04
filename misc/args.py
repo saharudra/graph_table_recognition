@@ -29,7 +29,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR',
+    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR_25',
                         help='data directory')
 
     # Data processing arguments
@@ -73,6 +73,17 @@ def scitsr_params():
     # Params for naive_gaussian rule
     parser.add_argument('--ng_mean_pos', type=str, default='centroid',
                         help='where to put the mean location for 1-D Gaussians, centroid | tlbr')
+
+    # Type of Graph generation rules params
+    parser.add_argument('--gr_single_relationship', type=bool, default=True,
+                        help='row only/col only models')
+    parser.add_argument('--gr_multi_label', type=bool, default=False,
+                        help='graph combines both row and col adjacency rule matrices\
+                              edges have both row and column labels')
+    parser.add_argument('--gr_multi_task', type=bool, default=False,
+                        help='graph combines both row and col adjacency rule matrices\
+                              edges are transformed using a common stem and heads added\
+                              for row/col classification tasks')
 
     opt = parser.parse_args()
 
@@ -170,17 +181,6 @@ def base_params():
                         help='number of attention heads for set transformer model')
     parser.add_argument('--num_set_hidden_features', type=int, default=128,
                         help='number of hidden features for the set transformer model')
-    
-    # Graph Rules params
-    parser.add_argument('--gr_single_relationship', type=bool, default=True,
-                        help='row only/col only models')
-    parser.add_argument('--gr_multi_label', type=bool, default=False,
-                        help='graph combines both row and col adjacency rule matrices\
-                              edges have both row and column labels')
-    parser.add_argument('--gr_multi_task', type=bool, default=False,
-                        help='graph combines both row and col adjacency rule matrices\
-                              edges are transformed using a common stem and heads added\
-                              for row/col classification tasks')
 
     opt = parser.parse_args()
 
