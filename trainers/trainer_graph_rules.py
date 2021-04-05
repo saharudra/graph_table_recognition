@@ -1,4 +1,6 @@
 from __future__ import print_function
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import torch
 import torch.nn as nn
@@ -30,7 +32,7 @@ def main(config):
     train_dataset = ScitsrGraphRules(dataset_params, partition='train')
     train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True)
 
-    val_dataset = ScitsrGraphRules(dataset_params, partition='val')
+    val_dataset = ScitsrGraphRules(dataset_params, partition='train')
     val_loader = DataLoader(val_dataset, batch_size=trainer_params.batch_size, shuffle=False)
 
     # Define model and initialize weights
@@ -80,7 +82,7 @@ def main(config):
         loss_criteria = nn.NLLLoss()
     elif trainer_params.loss_criteria == 'bce_logits':
         weight_tensor = torch.Tensor([trainer_params.class_weight]).to(DEVICE)
-        loss_criteria = nn. BCEWithLogitsLoss(pos_weight=weight_tensor)
+        loss_criteria = nn. BCEWithLogitsLoss(pos_weight=weight_tensor, reduction='sum')
 
     # Watch model
     # if dataset_params.gr_single_relationship:
@@ -97,8 +99,8 @@ def main(config):
     # Outer training loop
     print('LENGTH OF TRAINING DATASET: {}, VALIDATION DATASET: {}'.format(len(train_loader), len(val_loader)))
     print("$$$ STARTING TRAINING LOOP $$$")
-    for epoch in range(trainer_params.num_epochs):
-        with trange(len(train_loader)) as t:
+    with trange(trainer_params.num_epochs) as t:
+        for epoch in t:
             # Train a single pass of the model
             if dataset_params.gr_single_relationship:
                 train_out_dict = train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria)   
@@ -260,8 +262,8 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             val_col_loss += batch_col_loss.item()
 
             # Calculate accuracy
-            _, row_pred = F.softmax(row_logits.view(-1, 1)).max(1)
-            _, col_pred = F.softmax(col_logits.view(-1, 1)).max(1)
+            _, row_pred = F.softmax(row_logits.view(-1, 1), dim=0).max(1)
+            _, col_pred = F.softmax(col_logits.view(-1, 1), dim=0).max(1)
             
             row_label = row_data.y.detach().cpu().numpy()
             col_label = col_data.y.detach().cpu().numpy()
@@ -295,7 +297,7 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
         'val_row_loss': val_row_loss,
         'val_col_loss': val_col_loss
     }
-    import pdb; pdb.set_trace()
+
     return out_dict
 
 

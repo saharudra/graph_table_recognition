@@ -33,7 +33,7 @@ class ScitsrGraphRules(Dataset):
 
         # Create a list of images as a json file
         self.jsonfile = os.path.join(self.root_path, 'imglist_sb.json')
-        print(self.jsonfile)
+
         if os.path.exists(self.jsonfile) and not self.params.new_imglist:
             with open(self.jsonfile, 'r') as rf:
                 self.imglist = json.load(rf)
