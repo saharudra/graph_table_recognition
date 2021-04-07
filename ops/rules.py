@@ -74,8 +74,8 @@ class GraphRules():
         col_adj_mat = np.array(col_adj_mat)
 
         # Visualize adjacency matrices
-        # self._visualize_adjacency_matrices(row_adj_mat, col_adj_mat, img, pos)
-        # import pdb; pdb.set_trace()
+        self._visualize_adjacency_matrices(row_adj_mat, col_adj_mat, img, pos)
+        import pdb; pdb.set_trace()
 
         # Convert adjacency matrix to edge index for pytorch geometric dataloader
         row_edge_index, col_edge_index = self._adj_mat_2_edge_index(row_adj_mat), self._adj_mat_2_edge_index(col_adj_mat)
@@ -132,6 +132,8 @@ class GraphRules():
 
         # Visualize adjacency matrix on image
         fig, vax = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
+        vax[0].set_title('Row Specific Graph')
+        vax[1].set_title('Col Specific Graph')
         vax[0].imshow(img.squeeze(0).permute(1, 2, 0).numpy())
         vax[1].imshow(img.squeeze(0).permute(1, 2, 0).numpy())
         if len(pos) == len(row_adj_mat) == len(col_adj_mat) == len(row_adj_mat[0]) == len(col_adj_mat[0]):

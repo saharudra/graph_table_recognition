@@ -74,25 +74,25 @@ Miscllaneous scripts! Scrub them later.
 #     if os.path.exists(imgfn):
 #         shutil.copy(imgfn, dst_root + '/img/')
 #     else:
-#         print("FUCK")
+#         print("dst error")
 
 #     if os.path.exists(chunkfn):
 #         shutil.copy(chunkfn, dst_root + '/chunk/')
 #     else:
-#         print("FUCK")
+#         print("dst error")
     
 #     if os.path.exists(structurefn):
 #         shutil.copy(structurefn, dst_root + '/structure/')
 #     else:
-#         print("FUCK")
+#         print("dst error")
     
 #     if os.path.exists(relfn):
 #         shutil.copy(relfn, dst_root + '/rel/')
 #     else:
-#         print("FUCK")
+#         print("dst error")
 
 #     if os.path.exists(pdffn):
 #         shutil.copy(pdffn, dst_root + '/pdf/')
 #     else:
-#         print("FUCK")
+#         print("dst error")
 #     import pdb; pdb.set_trace()

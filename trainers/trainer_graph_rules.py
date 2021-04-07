@@ -85,11 +85,11 @@ def main(config):
         loss_criteria = nn. BCEWithLogitsLoss(pos_weight=weight_tensor, reduction='sum')
 
     # Watch model
-    # if dataset_params.gr_single_relationship:
-    #     wandb.watch(row_model)
-    #     wandb.watch(col_model)
-    # else:
-    #     wandb.watch(model)
+    if dataset_params.gr_single_relationship:
+        wandb.watch(row_model)
+        wandb.watch(col_model)
+    else:
+        wandb.watch(model)
 
 
     # Model saving params
@@ -110,7 +110,7 @@ def main(config):
                 train_out_dict = train_mt(model, optimizer, train_loader, loss_criteria)
             
             # Log training info
-            # wandb.log(train_out_dict)
+            wandb.log(train_out_dict)
 
             # Perform evaluation at intervals
             if epoch % trainer_params.val_interval == 0:
@@ -121,7 +121,7 @@ def main(config):
                 elif dataset_params.gr_multi_task:
                     eval_out_dict = eval_mt(model, val_loader, loss_criteria)
                 
-                # wandb.log(eval_out_dict)
+                wandb.log(eval_out_dict)
 
             # Schedule learning rate
             if trainer_params.schedule_lr:
@@ -366,8 +366,8 @@ if __name__ == '__main__':
     print("#" * 100)
 
     # Initialize wandb config
-    # wandb_name = trainer_params.exp + '_' + trainer_params.run + '_' + time
-    # wandb.init(name=wandb_name, entity='rsaha', project='table_graph_rules', config=config_dict)
+    wandb_name = trainer_params.run + '_' + time
+    wandb.init(name=wandb_name, entity='rsaha', project='table_graph_rules', config=config_dict)
 
     namespace_config_dict = {
                                 'dataset_params': dataset_params,

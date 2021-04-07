@@ -29,7 +29,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/data/rudra/table_structure_recognition/datasets/SciTSR_25',
+    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR_25',
                         help='data directory')
 
     # Data processing arguments
@@ -191,9 +191,9 @@ def trainer_params():
     parser = argparse.ArgumentParser(description="Arguments for trainer scripts")
 
     # Base arguments
-    parser.add_argument('--exp', type=str, default='table_structure_recognition',
+    parser.add_argument('--exp', type=str, default='graph_rules_results',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='transformer_vanilla',
+    parser.add_argument('--run', type=str, default='naive_gaussian_centroid_setup',
                         help='model version to be run')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')

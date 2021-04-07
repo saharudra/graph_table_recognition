@@ -9,6 +9,7 @@ __pycache__/
 # Directories
 table_structure_recognition/
 wandb/
+graph_rules_results/
 
 # Distribution / packaging
 .Python
