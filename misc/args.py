@@ -29,7 +29,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR_25',
+    parser.add_argument('--data_dir', type=str, default='/data/rudra/table_structure_recognition/datasets/SciTSR',
                         help='data directory')
 
     # Data processing arguments
@@ -195,6 +195,8 @@ def trainer_params():
                         help='task to be run, defines save directory root.')
     parser.add_argument('--run', type=str, default='naive_gaussian_centroid_setup',
                         help='model version to be run')
+    parser.add_argument('--overfit_one_batch', type=bool, default=True,
+                        help='whether overfitting the model under consideration on a single batch')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
     parser.add_argument('--device', type=str, default='cuda',
@@ -226,7 +228,7 @@ def trainer_params():
 
     # Training arguments
     # Lenth of trainingarguments
-    parser.add_argument('--num_epochs', type=int, default=100, 
+    parser.add_argument('--num_epochs', type=int, default=1000, 
                         help='number of epochs to train for')
     parser.add_argument('--early_stopping', type=bool, default=False,
                         help='whether to perform early_stopping')
@@ -260,7 +262,7 @@ def trainer_params():
     # Loss arguments
     parser.add_argument('--loss_criteria', type=str, default='bce_logits',
                         help='loss criteria to be used; bce_logits | nll | multi-label')
-    parser.add_argument('--class_weight', type=float, default=5.0,
+    parser.add_argument('--class_weight', type=float, default=100.0,
                         help='weigtage applied to the positive class as more 1s than 0s')
 
     # Logging arguments

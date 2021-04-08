@@ -17,6 +17,8 @@ class GraphRulesSingleRelationship(nn.Module):
         # position transformation layer
         self.conv1 = GCNConv(self.base_params.num_node_features, self.base_params.num_hidden_features)
         self.conv2 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
+        self.conv3 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
+        self.conv4 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
 
         # classification head
         # Using BCEWithLogitsLoss
@@ -30,10 +32,10 @@ class GraphRulesSingleRelationship(nn.Module):
         x, edge_index = data.x, data.edge_index
 
         # Transform position features
-        position_features = self.conv1(x, edge_index)
-        position_features = F.relu(position_features)
-        position_features = self.conv2(position_features, edge_index)
-        position_features = F.relu(position_features)
+        position_features = F.relu(self.conv1(x, edge_index))
+        position_features = F.relu(self.conv2(position_features, edge_index))
+        position_features = F.relu(self.conv3(position_features, edge_index))
+        position_features = F.relu(self.conv4(position_features, edge_index))
 
         # Edge feature generation
         n1_position_features = position_features[edge_index[0]]

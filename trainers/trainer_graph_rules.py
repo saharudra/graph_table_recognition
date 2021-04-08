@@ -85,76 +85,149 @@ def main(config):
         loss_criteria = nn. BCEWithLogitsLoss(pos_weight=weight_tensor, reduction='sum')
 
     # Watch model
-    if dataset_params.gr_single_relationship:
-        wandb.watch(row_model)
-        wandb.watch(col_model)
-    else:
-        wandb.watch(model)
+    # if dataset_params.gr_single_relationship:
+    #     wandb.watch(row_model)
+    #     wandb.watch(col_model)
+    # else:
+    #     wandb.watch(model)
 
 
     # Model saving params
     best_accuracy = 0.0
     best_epoch = -1
 
-    # Outer training loop
-    print('LENGTH OF TRAINING DATASET: {}, VALIDATION DATASET: {}'.format(len(train_loader), len(val_loader)))
-    print("$$$ STARTING TRAINING LOOP $$$")
-    with trange(trainer_params.num_epochs) as t:
-        for epoch in t:
-            # Train a single pass of the model
-            if dataset_params.gr_single_relationship:
-                train_out_dict = train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria)   
-            elif dataset_params.gr_multi_label:
-                train_out_dict = train_ml(model, optimizer, train_loader, loss_criteria)
-            elif dataset_params.gr_multi_task:
-                train_out_dict = train_mt(model, optimizer, train_loader, loss_criteria)
-            
-            # Log training info
-            wandb.log(train_out_dict)
-
-            # Perform evaluation at intervals
-            if epoch % trainer_params.val_interval == 0:
+    # Sanity Check: Overfitting on one batch of data
+    # TODO: Scrub sanity checks.
+    if trainer_params.overfit_one_batch:
+        print("$$$ OVERFITTING ON ONE BATCH")
+        data = next(iter(train_loader))
+        with trange(trainer_params.num_epochs) as t:
+            for epoch in t:
                 if dataset_params.gr_single_relationship:
-                    eval_out_dict = eval_sr(row_model, col_model, val_loader, loss_criteria)
+                    train_out_dict = train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimizer, data, loss_criteria)
+
+                t.set_postfix(train_out_dict)
+                t.update()
+    else:
+        # Outer training loop
+        print('LENGTH OF TRAINING DATASET: {}, VALIDATION DATASET: {}'.format(len(train_loader), len(val_loader)))
+        print("$$$ STARTING TRAINING LOOP $$$")
+        with trange(trainer_params.num_epochs) as t:
+            for epoch in t:
+                # Train a single pass of the model
+                if dataset_params.gr_single_relationship:
+                    train_out_dict = train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria)   
                 elif dataset_params.gr_multi_label:
-                    eval_out_dict = eval_ml(model, val_loader, loss_criteria)
+                    train_out_dict = train_ml(model, optimizer, train_loader, loss_criteria)
                 elif dataset_params.gr_multi_task:
-                    eval_out_dict = eval_mt(model, val_loader, loss_criteria)
+                    train_out_dict = train_mt(model, optimizer, train_loader, loss_criteria)
                 
-                wandb.log(eval_out_dict)
+                # Log training info
+                # wandb.log(train_out_dict)
 
-            # Schedule learning rate
-            if trainer_params.schedule_lr:
-                if dataset_params.gr_single_relationship:
-                    row_lr_scheduler.step(train_out_dict['row_loss'])
-                    col_lr_scheduler.step(train_out_dict['col_loss'])
-                else:
-                    lr_scheduler.step(train_out_dict['train_loss'])
-
-            # Save models based on accuracy/F1 score
-            if epoch % trainer_params.val_interval == 0:
-                if eval_out_dict['val_acc'] > best_accuracy:
+                # Perform evaluation at intervals
+                if epoch % trainer_params.val_interval == 0:
                     if dataset_params.gr_single_relationship:
-                        row_model_path = log_path + os.sep + "row_only_net_{}_best_so_far.pth".format(epoch)
-                        col_model_path = log_path + os.sep + "col_only_net_{}_best_sor_far.pth".format(epoch)
-                        torch.save(row_model.state_dict(), row_model_path)
-                        torch.save(col_model.state_dict(), col_model_path)
+                        eval_out_dict = eval_sr(row_model, col_model, val_loader, loss_criteria)
+                    elif dataset_params.gr_multi_label:
+                        eval_out_dict = eval_ml(model, val_loader, loss_criteria)
+                    elif dataset_params.gr_multi_task:
+                        eval_out_dict = eval_mt(model, val_loader, loss_criteria)
+                    
+                    # wandb.log(eval_out_dict)
+
+                # Schedule learning rate
+                if trainer_params.schedule_lr:
+                    if dataset_params.gr_single_relationship:
+                        row_lr_scheduler.step(train_out_dict['row_loss'])
+                        col_lr_scheduler.step(train_out_dict['col_loss'])
                     else:
-                        model_path = log_path + os.sep + "net_{}_best_so_far.pth".format(epoch)
-                        torch.save(model.state_dict(), model_path)
-                    best_accuracy = eval_out_dict['val_acc']
-                    best_epoch = epoch
+                        lr_scheduler.step(train_out_dict['train_loss'])
 
-            t_postfix_dict = {
-                'train_loss': train_out_dict['train_loss'],
-                'val_loss': eval_out_dict['val_loss'],
-                'val_acc': eval_out_dict['val_acc']
-            }
-            t.set_postfix(t_postfix_dict)
-            t.update()
+                # Save models based on accuracy/F1 score
+                if epoch % trainer_params.val_interval == 0:
+                    if eval_out_dict['val_acc'] > best_accuracy:
+                        if dataset_params.gr_single_relationship:
+                            row_model_path = log_path + os.sep + "row_only_net_{}_best_so_far.pth".format(epoch)
+                            col_model_path = log_path + os.sep + "col_only_net_{}_best_sor_far.pth".format(epoch)
+                            torch.save(row_model.state_dict(), row_model_path)
+                            torch.save(col_model.state_dict(), col_model_path)
+                        else:
+                            model_path = log_path + os.sep + "net_{}_best_so_far.pth".format(epoch)
+                            torch.save(model.state_dict(), model_path)
+                        best_accuracy = eval_out_dict['val_acc']
+                        best_epoch = epoch
 
-    print("*** TRAINING IS COMPLETE ***")
-    print("Best validation accuracy: {}, in epoch: {}".format(best_accuracy, best_epoch))
+                t_postfix_dict = {
+                    'train_loss': train_out_dict['train_loss'],
+                    'val_loss': eval_out_dict['val_loss'],
+                    'val_acc': eval_out_dict['val_acc']
+                }
+                t.set_postfix(t_postfix_dict)
+                t.update()
+
+        print("*** TRAINING IS COMPLETE ***")
+        print("Best validation accuracy: {}, in epoch: {}".format(best_accuracy, best_epoch))
+
+
+def train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimizer, data, loss_criteria):
+    row_optimizer.zero_grad()
+    col_optimizer.zero_grad()
+    row_data, col_data = data
+    row_data = row_data.to(DEVICE)
+    col_data = col_data.to(DEVICE)
+
+    # Gather model output and convert into a row tensor same as the ground truth
+    row_logits = row_model(row_data).view(-1)
+    col_logits = col_model(col_data).view(-1)
+
+    # Compute individual model losses
+    # import pdb; pdb.set_trace()
+    batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
+    batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
+
+    # Update models and optimizers
+    batch_row_loss.backward()
+    row_optimizer.step()
+
+    batch_col_loss.backward()
+    col_optimizer.step()
+
+    # Aggregate losses
+    row_loss = batch_row_loss.item() / len(row_data.y)
+    col_loss = batch_col_loss.item() / len(col_data.y)
+    train_loss = (row_loss + col_loss) * 0.5
+    # import pdb; pdb.set_trace()
+
+    # Calculate accuracy
+    _, row_pred = F.softmax(row_logits.view(-1, 1), dim=0).max(1)
+    _, col_pred = F.softmax(col_logits.view(-1, 1), dim=0).max(1)
+    
+    row_label = row_data.y.detach().cpu().numpy()
+    col_label = col_data.y.detach().cpu().numpy()
+
+    row_pred = row_pred.detach().cpu().numpy()
+    col_pred = col_pred.detach().cpu().numpy()
+
+    n_correct_row = (row_label == row_pred).sum()
+    n_correct_col = (col_label == col_pred).sum()
+    n_total_row = row_label.shape[0]
+    n_total_col = col_label.shape[0]
+
+    row_acc = n_correct_row / n_total_row
+    col_acc = n_correct_col / n_total_col
+    train_acc = 0.5 * (row_acc + col_acc)
+
+    out_dict = {
+        'train_loss': train_loss,
+        'row_loss': row_loss,
+        'col_loss': col_loss,
+        'train_acc': train_acc,
+        'row_acc': row_acc,
+        'col_acc': col_acc
+    }
+
+    return out_dict
 
 
 def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria):
@@ -168,7 +241,7 @@ def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, l
     # Initialize losses to be monitored
     train_loss = 0.0
     row_loss = 0.0
-    col_loss = 0.0
+    col_loss = 0.0  
 
     for idx, data in enumerate(train_loader):
         # Perform single step of training
@@ -198,7 +271,7 @@ def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, l
         row_loss += batch_row_loss.item()
         col_loss += batch_col_loss.item()
         train_loss += (batch_row_loss.item() + batch_col_loss.item())
-
+    
     train_loss /= len(train_loader.dataset)
     row_loss /= len(train_loader.dataset)
     col_loss /= len(train_loader.dataset)
@@ -366,8 +439,8 @@ if __name__ == '__main__':
     print("#" * 100)
 
     # Initialize wandb config
-    wandb_name = trainer_params.run + '_' + time
-    wandb.init(name=wandb_name, entity='rsaha', project='table_graph_rules', config=config_dict)
+    # wandb_name = trainer_params.run + '_' + time
+    # wandb.init(name=wandb_name, entity='rsaha', project='table_graph_rules', config=config_dict)
 
     namespace_config_dict = {
                                 'dataset_params': dataset_params,
