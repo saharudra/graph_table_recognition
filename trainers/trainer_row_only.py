@@ -19,7 +19,7 @@ from datetime import datetime
 from models.version1 import TbNetV1
 from models.version2 import TbNetV2
 from dataloaders.scitsr import ScitsrDataset
-from misc.args import train_params, scitsr_params, img_model_params, base_params
+from misc.args import trainer_params, scitsr_params, img_model_params, base_params
 from ops.misc import weights_init, mkdir_p
 
 """
@@ -45,10 +45,10 @@ def main(config):
     val_loader = DataLoader(val_dataset, batch_size=trainer_params.batch_size, shuffle=False)
 
     # Define model based on version
-    if trainer_params.maj_ver == '1':
-        model = TbNetV1(base_params, img_model_params, trainer_params)
-    elif trainer_params.maj_ver == '2':
-        model = TbNetV2(base_params, img_model_params, trainer_params)
+    # if trainer_params.maj_ver == '1':
+    model = TbNetV1(base_params, img_model_params, trainer_params)
+    # elif trainer_params.maj_ver == '2':
+        # model = TbNetV2(base_params, img_model_params, trainer_params)
     model.to(DEVICE)
     # TODO: Weight initialization
     model.apply(weights_init)
@@ -155,6 +155,7 @@ def eval(model, val_loader, loss_criteria):
     with torch.no_grad():
         for idx, data in enumerate(val_loader):
             data = data.to(DEVICE)
+            import pdb; pdb.set_trace()
             row_pred = model(data)
             row_loss = loss_function(row_pred, data.y_row, loss_criteria)
             loss = row_loss
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     # Get argument dictionaries
     img_params = img_model_params()
     dataset_params = scitsr_params()
-    trainer_params = train_params()
+    trainer_params = trainer_params()
     model_base_params = base_params()
 
     # Set params for row only things cause sometimes I am stupid :P

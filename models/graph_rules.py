@@ -15,27 +15,28 @@ class GraphRulesSingleRelationship(nn.Module):
         self.base_params = base_params
 
         # position transformation layer
-        self.conv1 = GCNConv(self.base_params.num_node_features, self.base_params.num_hidden_features)
-        self.conv2 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
-        self.conv3 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
-        self.conv4 = GCNConv(self.base_params.num_hidden_features, self.base_params.num_hidden_features)
+        self.conv1 = GCNConv(self.base_params.num_node_features, self.base_params.num_hidden_features * 2)
+        self.conv2 = GCNConv(self.base_params.num_hidden_features * 2, self.base_params.num_hidden_features * 2)
+        self.conv3 = GCNConv(self.base_params.num_hidden_features * 2, self.base_params.num_hidden_features)
 
         # classification head
         # Using BCEWithLogitsLoss
         self.lin = nn.Sequential(
             nn.Linear(self.base_params.num_hidden_features * 2, self.base_params.num_hidden_features),
             nn.ReLU(inplace=True),
+            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_hidden_features),
+            nn.ReLU(inplace=True),
             nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
         )
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
+        # import pdb; pdb.set_trace()
 
         # Transform position features
         position_features = F.relu(self.conv1(x, edge_index))
         position_features = F.relu(self.conv2(position_features, edge_index))
         position_features = F.relu(self.conv3(position_features, edge_index))
-        position_features = F.relu(self.conv4(position_features, edge_index))
 
         # Edge feature generation
         n1_position_features = position_features[edge_index[0]]
@@ -43,9 +44,9 @@ class GraphRulesSingleRelationship(nn.Module):
         edge_pos_features = torch.cat((n1_position_features, n2_position_features), dim=1)
 
         # Transform edge features
-        edge_pos_logits = F.relu(self.lin(edge_pos_features))
+        edge_pred = F.log_softmax(self.lin(edge_pos_features), dim=1)
 
-        return edge_pos_logits
+        return edge_pred
 
 
 class GraphRulesMultiLabel(nn.Module):

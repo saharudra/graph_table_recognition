@@ -142,3 +142,104 @@ def resize(image, output_shape, order=1, mode='constant', cval=0, clip=True,
             image, output_shape,
             order=order, mode=mode, cval=cval, clip=clip,
             preserve_range=preserve_range)
+
+
+def cal_adj_label(data_row, data_col, y_row, y_col):
+        """
+        :input:
+            :y_row: adjacency matrix for cells that are part of the same row
+            :y_col: adjacency matrix for cells that are part of the same col
+        :output:
+            :y_adj: adjacency matrix for cells that are immediate neigbhors either
+                    row or column wise.
+        """
+        
+        row_edge_index = data_row.edge_index.numpy()
+        col_edge_index = data_col.edge_index.numpy()
+
+        num_cells = data_row.pos.shape[0]
+
+        adjacency_mat = np.zeros((num_cells, num_cells))
+
+        # Add using rows only
+        for row_idx in range(num_cells):
+            # Add first same row/col connection directly
+            # Check if second cell with same row/col connection
+            # is in same col/row as that of previously added 
+            # adjacency connections
+            row_added = False
+            end_cells_added = []
+            
+            curr_edge_ends = np.where(row_edge_index[0] == row_idx)[0]
+            for end in curr_edge_ends:
+                # end node of an edge in the edge_index of pytorch geometric data loader output
+                end_cell_idx = row_edge_index[1][end]
+                # Don't do anything for backward linking edges
+                if end_cell_idx < row_idx:
+                    continue
+                elif y_row[end] == 1 and not(row_added):
+                    adjacency_mat[row_idx][end_cell_idx] = 1
+                    end_cells_added.append(end_cell_idx)
+                    row_added = True
+                elif y_row[end] == 1 and row_added:
+                    # check if end_cell_idx is in the same col as end_cells_added
+                    # for the given row_idx
+                    # If in the same col then add to adj_mat else its part
+                    # of the same row but not adjacent
+                    if check_same_col(end_cell_idx, end_cells_added, y_col, col_edge_index):
+                        adjacency_mat[row_idx][end_cell_idx] = 1
+                        end_cells_added.append(end_cell_idx)
+        
+        # Add using cols only
+        for col_idx in range(num_cells):
+            col_added = False
+            end_cells_added = []
+
+            curr_edge_ends = np.where(col_edge_index[0] == col_idx)[0]
+            for end in curr_edge_ends:
+                end_cell_idx = col_edge_index[1][end]
+                if end_cell_idx < col_idx:
+                    continue
+                elif y_col[end] == 1 and not(col_added):
+                    adjacency_mat[col_idx][end_cell_idx] = 1
+                    end_cells_added.append(end_cell_idx)
+                    col_added = True
+                elif y_col[end] == 1 and col_added:
+                    if check_same_row(end_cell_idx, end_cells_added, y_row, row_edge_index):
+                        adjacency_mat[col_idx][end_cell_idx] = 1
+                        end_cells_added.append(end_cell_idx)
+
+        # Copy upper triangular matrix to lower one as adjacency is symmetrical
+        adjacency_mat = adjacency_mat + adjacency_mat.T - np.diag(np.diag(adjacency_mat))
+        
+        return adjacency_mat
+
+
+def check_same_col(end_cell_idx, end_cells_added, y_col, col_edge_index):
+        same_col = True
+        for prev_cell in end_cells_added:
+            gt_idx = np.intersect1d(np.where(col_edge_index[0] == end_cell_idx), 
+                                    np.where(col_edge_index[1] == prev_cell))
+            if len(gt_idx) == 0:
+                same_col = False
+            elif len(gt_idx) == 1 and y_col[gt_idx[0]] == 1:
+                continue
+            else:
+                same_col = False
+
+        return same_col
+
+
+def check_same_row(end_cell_idx, end_cells_added, y_row, row_edge_index):
+    same_row = True
+    for prev_cell in end_cells_added:
+        gt_idx = np.intersect1d(np.where(row_edge_index[0] == end_cell_idx), 
+                                np.where(row_edge_index[1] == prev_cell))
+        if len(gt_idx) == 0:
+            same_row = False
+        elif len(gt_idx) == 1 and y_row[gt_idx[0]] == 1:
+            continue
+        else:
+            same_row = False
+
+    return same_row

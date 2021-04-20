@@ -17,10 +17,12 @@ import random
 import wandb
 from datetime import datetime
 from tqdm import trange
+from sklearn.metrics import precision_score, recall_score
 
 from models.graph_rules import GraphRulesSingleRelationship, GraphRulesMultiLabel, GraphRulesMultiTask
 from dataloaders.scitsr_graph_rules import ScitsrGraphRules
 from misc.args import scitsr_params, base_params, trainer_params
+from ops.utils import cal_adj_label
 from ops.misc import weights_init, mkdir_p
 
 def main(config):
@@ -33,7 +35,9 @@ def main(config):
     train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True)
 
     val_dataset = ScitsrGraphRules(dataset_params, partition='train')
-    val_loader = DataLoader(val_dataset, batch_size=trainer_params.batch_size, shuffle=False)
+    # Using batch size of 1 for validation with adjacency matrix
+    # TODO: Collate adjacency matrix to pass it as a batch
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
     # Define model and initialize weights
     if dataset_params.gr_single_relationship:
@@ -79,17 +83,18 @@ def main(config):
     
     # Define loss criteria
     if trainer_params.loss_criteria == 'nll':
+
         loss_criteria = nn.NLLLoss()
     elif trainer_params.loss_criteria == 'bce_logits':
         weight_tensor = torch.Tensor([trainer_params.class_weight]).to(DEVICE)
         loss_criteria = nn. BCEWithLogitsLoss(pos_weight=weight_tensor, reduction='sum')
 
     # Watch model
-    # if dataset_params.gr_single_relationship:
-    #     wandb.watch(row_model)
-    #     wandb.watch(col_model)
-    # else:
-    #     wandb.watch(model)
+    if dataset_params.gr_single_relationship:
+        wandb.watch(row_model)
+        wandb.watch(col_model)
+    else:
+        wandb.watch(model)
 
 
     # Model saving params
@@ -105,7 +110,8 @@ def main(config):
             for epoch in t:
                 if dataset_params.gr_single_relationship:
                     train_out_dict = train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimizer, data, loss_criteria)
-
+                
+                wandb.log(train_out_dict)
                 t.set_postfix(train_out_dict)
                 t.update()
     else:
@@ -123,7 +129,7 @@ def main(config):
                     train_out_dict = train_mt(model, optimizer, train_loader, loss_criteria)
                 
                 # Log training info
-                # wandb.log(train_out_dict)
+                wandb.log(train_out_dict)
 
                 # Perform evaluation at intervals
                 if epoch % trainer_params.val_interval == 0:
@@ -134,7 +140,7 @@ def main(config):
                     elif dataset_params.gr_multi_task:
                         eval_out_dict = eval_mt(model, val_loader, loss_criteria)
                     
-                    # wandb.log(eval_out_dict)
+                    wandb.log(eval_out_dict)
 
                 # Schedule learning rate
                 if trainer_params.schedule_lr:
@@ -178,11 +184,10 @@ def train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimize
     col_data = col_data.to(DEVICE)
 
     # Gather model output and convert into a row tensor same as the ground truth
-    row_logits = row_model(row_data).view(-1)
-    col_logits = col_model(col_data).view(-1)
+    row_logits = row_model(row_data)
+    col_logits = col_model(col_data)
 
     # Compute individual model losses
-    # import pdb; pdb.set_trace()
     batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
     batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
 
@@ -200,8 +205,17 @@ def train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimize
     # import pdb; pdb.set_trace()
 
     # Calculate accuracy
-    _, row_pred = F.softmax(row_logits.view(-1, 1), dim=0).max(1)
-    _, col_pred = F.softmax(col_logits.view(-1, 1), dim=0).max(1)
+    # import pdb; pdb.set_trace()
+    _, row_pred = row_logits.max(1)
+    _, col_pred = col_logits.max(1)
+
+    # For sanity losses of all zero and all one predictions
+    all_one_row = torch.ones(row_pred.shape).numpy()
+    all_zeros_row = torch.zeros(row_pred.shape).numpy()
+    all_one_col = torch.ones(col_pred.shape).numpy()
+    all_zeros_col = torch.zeros(col_pred.shape).numpy()
+    # import pdb; pdb.set_trace()
+
     
     row_label = row_data.y.detach().cpu().numpy()
     col_label = col_data.y.detach().cpu().numpy()
@@ -209,13 +223,22 @@ def train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimize
     row_pred = row_pred.detach().cpu().numpy()
     col_pred = col_pred.detach().cpu().numpy()
 
+    
     n_correct_row = (row_label == row_pred).sum()
     n_correct_col = (col_label == col_pred).sum()
+    n_correct_row_one = (row_label == all_one_row).sum()
+    n_correct_row_zero = (row_label == all_zeros_row).sum()
+    n_correct_col_one = (col_label == all_one_col).sum()
+    n_correct_col_zero = (col_label == all_zeros_col).sum()
     n_total_row = row_label.shape[0]
     n_total_col = col_label.shape[0]
 
     row_acc = n_correct_row / n_total_row
     col_acc = n_correct_col / n_total_col
+    row_one = n_correct_row_one / n_total_row
+    row_zero = n_correct_row_zero / n_total_row
+    col_one = n_correct_col_one / n_total_col
+    col_zero = n_correct_col_zero / n_total_col
     train_acc = 0.5 * (row_acc + col_acc)
 
     out_dict = {
@@ -224,7 +247,11 @@ def train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimize
         'col_loss': col_loss,
         'train_acc': train_acc,
         'row_acc': row_acc,
-        'col_acc': col_acc
+        'col_acc': col_acc,
+        # 'row_all_one_acc': row_one,
+        # 'row_all_zero_acc': row_zero,
+        # 'col_all_one_acc': col_one,
+        # 'col_all_zero_acc': col_zero
     }
 
     return out_dict
@@ -326,7 +353,6 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             
             row_logits = row_model(row_data).view(-1)
             col_logits = col_model(col_data).view(-1)
-
             batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
             batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
 
@@ -350,6 +376,11 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             n_total_col += col_label.shape[0]
 
             # TODO: Calculate Precision, Recall and F1 Score for cell adjacency
+            gt_adjacency_mat = cal_adj_label(data_row, data_col, row_label, col_label)
+            pred_adjacency_mat = cal_adj_label(data_row, data_col, row_pred, col_pred)
+            precision = precision_score(gt_adjacency_mat, pred_adjacency_mat)
+            recall = recall_score(gt_adjacency_mat, pred_adjacency_mat)
+            f1 = 2 * (precision * recall) / (precision + recall)
 
     val_loss /= len(val_loader.dataset)
     val_row_loss /= len(val_loader.dataset)
@@ -439,8 +470,8 @@ if __name__ == '__main__':
     print("#" * 100)
 
     # Initialize wandb config
-    # wandb_name = trainer_params.run + '_' + time
-    # wandb.init(name=wandb_name, entity='rsaha', project='table_graph_rules', config=config_dict)
+    wandb_name = trainer_params.run + '_' + time
+    wandb.init(name=wandb_name, entity='rsaha', project='table_graph_rules', config=config_dict)
 
     namespace_config_dict = {
                                 'dataset_params': dataset_params,

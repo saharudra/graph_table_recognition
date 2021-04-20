@@ -137,11 +137,11 @@ def base_params():
     parser = argparse.ArgumentParser(description="Arguments for table structure recognition base")
 
     # Global params
-    parser.add_argument('--num_classes', type=int, default=1,
+    parser.add_argument('--num_classes', type=int, default=2,
                         help='both row and col classification as binary classification')
 
     # Position feature params 
-    parser.add_argument('--num_hidden_features', type=int, default=64, 
+    parser.add_argument('--num_hidden_features', type=int, default=128, 
                         help='number of hidden features for the entire processing')
     parser.add_argument('--num_node_features', type=int, default=8,
                         help='number of input features of a node in graph models')
@@ -193,7 +193,7 @@ def trainer_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='graph_rules_results',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='naive_gaussian_centroid_setup',
+    parser.add_argument('--run', type=str, default='overfit_one_batch',
                         help='model version to be run')
     parser.add_argument('--overfit_one_batch', type=bool, default=True,
                         help='whether overfitting the model under consideration on a single batch')
@@ -260,7 +260,7 @@ def trainer_params():
                         help='beta2 for adam optimizer')
 
     # Loss arguments
-    parser.add_argument('--loss_criteria', type=str, default='bce_logits',
+    parser.add_argument('--loss_criteria', type=str, default='nll',
                         help='loss criteria to be used; bce_logits | nll | multi-label')
     parser.add_argument('--class_weight', type=float, default=100.0,
                         help='weigtage applied to the positive class as more 1s than 0s')

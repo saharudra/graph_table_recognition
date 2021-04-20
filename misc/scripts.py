@@ -30,9 +30,9 @@ Miscllaneous scripts! Scrub them later.
 #     for i in f_lst:
 #         os.remove(i)
 
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 # loss = nn.BCELoss()
 # target = F.softmax(torch.randn(64, 1), dim=1)
@@ -41,3 +41,11 @@ Miscllaneous scripts! Scrub them later.
 # print(target.shape, pred.shape)
 # out = loss(pred, target)
 # print(out)
+
+loss = nn.NLLLoss()
+pred = F.log_softmax(torch.randn(5, 2), dim=1)
+target = torch.tensor([1, 0, 1, 1, 0])
+out = loss(pred, target)
+print(out)
+
+
