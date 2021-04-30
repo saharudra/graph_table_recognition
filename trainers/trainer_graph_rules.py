@@ -32,20 +32,23 @@ def main(config):
 
     # Define dataloader
     train_dataset = ScitsrGraphRules(dataset_params, partition='train')
-    train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True, 
+                              num_workers=8, pin_memory=True)
 
-    val_dataset = ScitsrGraphRules(dataset_params, partition='train')
+    val_dataset = ScitsrGraphRules(dataset_params, partition='test')
     # Using batch size of 1 for validation with adjacency matrix
     # TODO: Collate adjacency matrix to pass it as a batch
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
-
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, pin_memory=True)
+    
     # Define model and initialize weights
     if dataset_params.gr_single_relationship:
         row_model = GraphRulesSingleRelationship(base_params)
         col_model = GraphRulesSingleRelationship(base_params)
         row_model.apply(weights_init)
-        col_model.to(DEVICE)
+        # row_model = nn.DataParallel(row_model)
         col_model.apply(weights_init)
+        # col_model = nn.DataParallel(col_model)
+        col_model.to(DEVICE)
         row_model.to(DEVICE)
     elif dataset_params.gr_multi_label:
         model = GraphRulesMultiLabel(base_params)
@@ -101,8 +104,6 @@ def main(config):
     best_accuracy = 0.0
     best_epoch = -1
 
-    # Sanity Check: Overfitting on one batch of data
-    # TODO: Scrub sanity checks.
     if trainer_params.overfit_one_batch:
         print("$$$ OVERFITTING ON ONE BATCH")
         data = next(iter(train_loader))
@@ -111,7 +112,7 @@ def main(config):
                 if dataset_params.gr_single_relationship:
                     train_out_dict = train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimizer, data, loss_criteria)
                 
-                wandb.log(train_out_dict)
+                # wandb.log(train_out_dict)
                 t.set_postfix(train_out_dict)
                 t.update()
     else:
@@ -123,6 +124,7 @@ def main(config):
                 # Train a single pass of the model
                 if dataset_params.gr_single_relationship:
                     train_out_dict = train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria)   
+                    print(train_out_dict)
                 elif dataset_params.gr_multi_label:
                     train_out_dict = train_ml(model, optimizer, train_loader, loss_criteria)
                 elif dataset_params.gr_multi_task:
@@ -135,6 +137,7 @@ def main(config):
                 if epoch % trainer_params.val_interval == 0:
                     if dataset_params.gr_single_relationship:
                         eval_out_dict = eval_sr(row_model, col_model, val_loader, loss_criteria)
+                        print(eval_out_dict)
                     elif dataset_params.gr_multi_label:
                         eval_out_dict = eval_ml(model, val_loader, loss_criteria)
                     elif dataset_params.gr_multi_task:
@@ -155,7 +158,7 @@ def main(config):
                     if eval_out_dict['val_acc'] > best_accuracy:
                         if dataset_params.gr_single_relationship:
                             row_model_path = log_path + os.sep + "row_only_net_{}_best_so_far.pth".format(epoch)
-                            col_model_path = log_path + os.sep + "col_only_net_{}_best_sor_far.pth".format(epoch)
+                            col_model_path = log_path + os.sep + "col_only_net_{}_best_so_far.pth".format(epoch)
                             torch.save(row_model.state_dict(), row_model_path)
                             torch.save(col_model.state_dict(), col_model_path)
                         else:
@@ -165,9 +168,8 @@ def main(config):
                         best_epoch = epoch
 
                 t_postfix_dict = {
-                    'train_loss': train_out_dict['train_loss'],
-                    'val_loss': eval_out_dict['val_loss'],
-                    'val_acc': eval_out_dict['val_acc']
+                    'val_acc': eval_out_dict['val_acc'],
+                    'val_f1': eval_out_dict['val_f1'],
                 }
                 t.set_postfix(t_postfix_dict)
                 t.update()
@@ -279,11 +281,10 @@ def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, l
         col_data = col_data.to(DEVICE)
 
         # Gather model output and convert into a row tensor same as the ground truth
-        row_logits = row_model(row_data).view(-1)
-        col_logits = col_model(col_data).view(-1)
+        row_logits = row_model(row_data)
+        col_logits = col_model(col_data)
 
         # Compute individual model losses
-        # import pdb; pdb.set_trace()
         batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
         batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
 
@@ -351,8 +352,8 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             row_data = row_data.to(DEVICE)
             col_data = col_data.to(DEVICE)  
             
-            row_logits = row_model(row_data).view(-1)
-            col_logits = col_model(col_data).view(-1)
+            row_logits = row_model(row_data)
+            col_logits = col_model(col_data)
             batch_row_loss = loss_function(row_logits, row_data.y, loss_criteria, task='sr')
             batch_col_loss = loss_function(col_logits, col_data.y, loss_criteria, task='sr')
 
@@ -360,9 +361,11 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             val_row_loss += batch_row_loss.item()
             val_col_loss += batch_col_loss.item()
 
-            # Calculate accuracy
-            _, row_pred = F.softmax(row_logits.view(-1, 1), dim=0).max(1)
-            _, col_pred = F.softmax(col_logits.view(-1, 1), dim=0).max(1)
+            # Calculate accuracy same row/col prediction
+            # _, row_pred = F.softmax(row_logits.view(-1, 1), dim=0).max(1)
+            # _, col_pred = F.softmax(col_logits.view(-1, 1), dim=0).max(1)
+            _, row_pred = row_logits.max(1)
+            _, col_pred = col_logits.max(1)
             
             row_label = row_data.y.detach().cpu().numpy()
             col_label = col_data.y.detach().cpu().numpy()
@@ -375,12 +378,20 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             n_total_row += row_label.shape[0]
             n_total_col += col_label.shape[0]
 
-            # TODO: Calculate Precision, Recall and F1 Score for cell adjacency
-            gt_adjacency_mat = cal_adj_label(data_row, data_col, row_label, col_label)
-            pred_adjacency_mat = cal_adj_label(data_row, data_col, row_pred, col_pred)
-            precision = precision_score(gt_adjacency_mat, pred_adjacency_mat)
-            recall = recall_score(gt_adjacency_mat, pred_adjacency_mat)
-            f1 = 2 * (precision * recall) / (precision + recall)
+            # Calculate Precision, Recall and F1 Score for cell adjacency
+            gt_adjacency_mat = cal_adj_label(row_data, col_data, row_label, col_label)
+            pred_adjacency_mat = cal_adj_label(row_data, col_data, row_pred, col_pred)
+            
+            precision = precision_score(gt_adjacency_mat.flatten(), pred_adjacency_mat.flatten(), zero_division=0)
+            recall = recall_score(gt_adjacency_mat.flatten(), pred_adjacency_mat.flatten())
+            if (precision + recall) != 0.0:            
+                f1 = 2 * (precision * recall) / (precision + recall)
+            else:
+                f1 = 0.0
+
+            val_F1 += f1
+            val_precision += precision
+            val_recall += recall
 
     val_loss /= len(val_loader.dataset)
     val_row_loss /= len(val_loader.dataset)
@@ -390,12 +401,16 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
     col_acc = n_correct_col / n_total_col
     val_acc = 0.5 * (row_acc + col_acc)
 
+    val_F1 /= len(val_loader.dataset)
+    val_recall /= len(val_loader.dataset)
+    val_precision /= len(val_loader.dataset)
+
     out_dict = {
         'val_loss': val_loss,
         'val_acc': val_acc,
         'row_acc': row_acc,
         'col_acc': col_acc,
-        'val_F1': val_F1,
+        'val_f1': val_F1,
         'val_precision': val_precision,
         'val_recall': val_recall,
         'val_row_loss': val_row_loss,

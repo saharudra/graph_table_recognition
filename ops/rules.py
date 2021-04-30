@@ -98,7 +98,7 @@ class GraphRules():
                 if adj_mat[rid, cid] == 1:
                     edge_index.append([rid, cid])
         edge_index = torch.from_numpy(np.asarray(edge_index))
-        edge_index = edge_index.t().contiguous()
+        edge_index = edge_index.t().contiguous().long()
 
         return edge_index
 

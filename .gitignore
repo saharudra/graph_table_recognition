@@ -10,6 +10,8 @@ __pycache__/
 table_structure_recognition/
 wandb/
 graph_rules_results/
+icdar_2013_comp/
+icdar_2019_comp/
 
 # Distribution / packaging
 .Python

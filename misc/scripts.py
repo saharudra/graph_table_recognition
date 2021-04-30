@@ -30,9 +30,9 @@ Miscllaneous scripts! Scrub them later.
 #     for i in f_lst:
 #         os.remove(i)
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
 
 # loss = nn.BCELoss()
 # target = F.softmax(torch.randn(64, 1), dim=1)
@@ -42,10 +42,27 @@ import torch.nn.functional as F
 # out = loss(pred, target)
 # print(out)
 
-loss = nn.NLLLoss()
-pred = F.log_softmax(torch.randn(5, 2), dim=1)
-target = torch.tensor([1, 0, 1, 1, 0])
-out = loss(pred, target)
-print(out)
+# loss = nn.NLLLoss()
+# pred = F.log_softmax(torch.randn(5, 2), dim=1)
+# target = torch.tensor([1, 0, 1, 1, 0])
+# out = loss(pred, target)
+# print(out)
 
+# Combine ICDAR 2013 competition data
+import os
+import shutil
+
+data_root = '/data/rudra/table_structure_recognition/datasets/icdar_2013_comp'
+eu_data = data_root + '/competition-dataset-eu'
+us_data = data_root + '/competition-dataset-us'
+combined = data_root + '/combined'
+
+count = 0
+
+eu_files = os.listdir(eu_data)
+file_count_dict = {}
+
+for f in eu_files:
+    fn
+    
 

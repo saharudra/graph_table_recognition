@@ -9,7 +9,7 @@ def pubtabnet_parms():
     parser.add_argument('--json_file', type=str, default='PubTabNet_2.0.0.jsonl',
                         help='Annotation file for all splits')
     
-    parser.add_argument('--new_imglist', type=bool, default=True,
+    parser.add_argument('--new_imglist', type=bool, default=False,
                         help='whether to create a new imglist or use existing one if it exists')
     parser.add_argument('--img_size', type=int, default=1024,
                         help='size of the image taken in by the model')
@@ -24,6 +24,7 @@ def pubtabnet_parms():
     opt = parser.parse_args()
 
     return opt
+    
 
 def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
@@ -193,9 +194,9 @@ def trainer_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='graph_rules_results',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='overfit_one_batch',
+    parser.add_argument('--run', type=str, default='precision_recall_checks',
                         help='model version to be run')
-    parser.add_argument('--overfit_one_batch', type=bool, default=True,
+    parser.add_argument('--overfit_one_batch', type=bool, default=False,
                         help='whether overfitting the model under consideration on a single batch')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
@@ -221,7 +222,7 @@ def trainer_params():
                         help='dataset to be used for evaluating and benchmarking models icdar2013 | icdar2019')
     parser.add_argument('--workers', type=int, default=0,
                         help='number of dataloading workers, not an option in torch_geometric')
-    parser.add_argument('--batch_size', type=int, default=5,
+    parser.add_argument('--batch_size', type=int, default=64,
                         help='input batch size')
     parser.add_argument('--batched', type=bool, default=True,
                         help='whether models are processing samples in a batched manner or one at a time.')
@@ -266,7 +267,7 @@ def trainer_params():
                         help='weigtage applied to the positive class as more 1s than 0s')
 
     # Logging arguments
-    parser.add_argument('--val_interval', type=int, default=5,
+    parser.add_argument('--val_interval', type=int, default=50,
                         help='interval at which validation will be performed and logged')
     parser.add_argument('--save_interval', type=int, default=1,
                         help='interval at which model check will be done to save best')
@@ -274,7 +275,32 @@ def trainer_params():
     opt = parser.parse_args()
 
     return opt
+
+
+def evaluation_params():
+    parser = argparse.ArgumentParser(description="Arguments for evaluation scripts")
+
+    # saving arguments
+    parser.add_argument('--exp', type=str, default='icdar_2013_comp',
+                        help='which evaluation experiment is being run')
+
+    # model specific arguments
+    parser.add_argument('--pretrained_root', type=str, 
+                        default='/data/rudra/table_structure_recognition/graph_table_recognition/graph_rules_results/precision_recall_checks_2021_04_20_18_30/checkpoints',
+                        help='path to the root of pretrained_model')
+    parser.add_argument('--best_epoch', type=int, default=900,
+                        help='best epoch model to take')
+
+    # dataset specific arguments
+    parser.add_argument('--eval_dataset', type=str, default='icdar2013',
+                        help='dataset used for evaluation. icdar2013 | icdar2019  | pubtabnet')
+    parser.add_argument('--data_dir', type=str, default='/data/rudra/table_structure_recognition/datasets/icdar/2013_eu',
+                          help='eval_data_dir')
     
+
+    opt = parser.parse_args()
+
+    return opt
     
 
     

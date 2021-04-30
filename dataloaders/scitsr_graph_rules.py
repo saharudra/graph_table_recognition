@@ -32,7 +32,7 @@ class ScitsrGraphRules(Dataset):
         self.root_path = os.path.join(self.params.data_dir, partition)
 
         # Create a list of images as a json file
-        self.jsonfile = os.path.join(self.root_path, 'imglist_sb.json')
+        self.jsonfile = os.path.join(self.root_path, 'imglist_rules.json')
 
         if os.path.exists(self.jsonfile) and not self.params.new_imglist:
             with open(self.jsonfile, 'r') as rf:
@@ -128,7 +128,10 @@ class ScitsrGraphRules(Dataset):
         with open(structfn, 'r') as f:
             structs = json.load(f)['cells']
         # print(os.stat(imgfn).st_size == 0)
-        img = cv2.cvtColor(cv2.imread(imgfn), cv2.COLOR_BGR2RGB)
+        try:
+            img = cv2.cvtColor(cv2.imread(imgfn), cv2.COLOR_BGR2RGB)
+        except:
+            img = None
         if img is not None:
             h, w, c = img.shape
             img, window, scale, padding, crop = resize_image(img, min_dim=self.params.img_size, max_dim=self.params.img_size,
@@ -149,7 +152,8 @@ class ScitsrGraphRules(Dataset):
                 offset = 0
 
             rescale_params = [h, w, h_n, w_n, offset]
-
+        else:
+            rescale_params = None
         return structs, chunks, img, rescale_params
 
     def __len__(self):
@@ -308,23 +312,25 @@ if __name__ == '__main__':
     
     params = scitsr_params()
     print(params)
-    train_dataset = ScitsrGraphRules(params)
-    train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
-    for idx, data in enumerate(train_loader):
+    val_dataset = ScitsrGraphRules(params, partition='test')
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
+    
+    for idx, data in enumerate(val_loader):
         data_row, data_col = data
-        import pdb; pdb.set_trace()
-        img = data_row.img
-        img = torch.squeeze(img, dim=0).permute(1, 2, 0).numpy()
-        pos = data_row.pos.numpy()
+        
+        # img = data_row.img
+        # img = torch.squeeze(img, dim=0).permute(1, 2, 0).numpy()
+        # pos = data_row.pos.numpy()
 
-        x_scatter = pos[:, 0] * 1024
-        y_scatter = pos[:, 1] * 1024
-        # plot image and overlay scatter plot
-        fig, ax = plt.subplots()
-        ax.scatter(x_scatter, y_scatter, c='green')
-        ax.imshow(img)
-        plt.show()
-        import pdb; pdb.set_trace()
+        # x_scatter = pos[:, 0] * 1024
+        # y_scatter = pos[:, 1] * 1024
+        # # plot image and overlay scatter plot
+        # fig, ax = plt.subplots()
+        # ax.scatter(x_scatter, y_scatter, c='green')
+        # ax.imshow(img)
+        # plt.show()
+        # import pdb; pdb.set_trace()
+    import pdb; pdb.set_trace()
 
 
 

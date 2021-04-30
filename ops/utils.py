@@ -154,8 +154,8 @@ def cal_adj_label(data_row, data_col, y_row, y_col):
                     row or column wise.
         """
         
-        row_edge_index = data_row.edge_index.numpy()
-        col_edge_index = data_col.edge_index.numpy()
+        row_edge_index = data_row.edge_index.cpu().numpy()
+        col_edge_index = data_col.edge_index.cpu().numpy()
 
         num_cells = data_row.pos.shape[0]
 
