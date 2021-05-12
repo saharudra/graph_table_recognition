@@ -17,7 +17,7 @@ print(dataset_params)
 train_dataset = ScitsrDataset(dataset_params)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
 
-def sample_box_features(cnnout, nodenum, pos, cell_wh, img, num_samples=5, div=16.0):
+def sample_box_features(cnnout, nodenum, pos, cell_wh, num_samples=5, div=16.0):
     """
     TODO: Make the feature efficient. Start by removing internal loops.
     cnnout:  batch_size x cnn_out_features x cnn_out_h x cnn_out_w
@@ -128,5 +128,28 @@ img_model = models.resnet18()
 for idx, data in enumerate(train_loader):
     img, imgpos, nodenum, cell_wh = data.img, data.imgpos, data.nodenum, data.cell_wh
     img_features = img_model(img)
-    box_features = sample_box_features(img_features, nodenum, imgpos, cell_wh, img, num_samples=5, div=32.0)
+    box_features = sample_box_features(img_features, nodenum, imgpos, cell_wh, num_samples=5, div=32.0)
     import pdb; pdb.set_trace()
+
+def sample_box_feature(cnnout, nodenum, pos):
+    cnt = 0
+    #print("**",nodenum)
+    for i in range(nodenum.size()[0]):
+    #     import pdb; pdb.set_trace()
+        #print("**",pos.size())
+        imgpos=pos[cnt:cnt+nodenum[i], :]
+        imgpos = imgpos.unsqueeze(0) 
+        imgpos = imgpos.unsqueeze(0)  # make 1*1*W*2 , W 看作是一个图有多少个box
+        #print("**",imgpos.size())
+        cnnin = cnnout[i].unsqueeze(0) # 第0维是batch
+    #     import pdb; pdb.set_trace()
+        sout = F.grid_sample(cnnin, imgpos, mode='bilinear', padding_mode='border')
+        cnt+=nodenum[i]
+        sout=sout.squeeze(0)
+        sout=sout.squeeze(1)
+        sout = sout.permute(1, 0) # num_box*feature_num
+        if i==0:
+            out = sout
+        else:
+            out = torch.cat((out,sout),0)
+    return out

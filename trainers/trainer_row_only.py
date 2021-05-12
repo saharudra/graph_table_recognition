@@ -136,7 +136,7 @@ def train(model, optimizer, train_loader, loss_criteria):
         optimizer.step()
         
         # Aggregate losses
-        epoch_loss += loss.item()
+        epoch_loss += loss.detach().item()
 
     epoch_loss /= len(train_loader.dataset)
     
@@ -160,7 +160,7 @@ def eval(model, val_loader, loss_criteria):
             row_loss = loss_function(row_pred, data.y_row, loss_criteria)
             loss = row_loss
 
-            val_loss += loss.item()
+            val_loss += loss.detach().item()
             
             # Accuracy calculation
             _, row_pred = row_pred.max(1)

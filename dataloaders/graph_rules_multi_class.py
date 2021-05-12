@@ -1,3 +1,6 @@
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 import random
 import cv2
 import numpy as np
@@ -5,26 +8,24 @@ import os
 
 import torch
 import torch.nn as nn
-# from torch.utils.data import Dataset, DataLoader
-from torch_geometric.data import Data, Dataset, DataLoader
 import math
 import json
 
+from torch_geometric.data import Data, Dataset, DataLoader
 from misc.args import scitsr_params
 from ops.rules import GraphRules
 from ops.utils import resize_image
 
-class ScitsrGraphRules(Dataset):
+class GraphRulesMultiClass(Dataset):
     """
-    Creating sets and graphs with edges between nodes 
-    identified as part of said set. 
-    Output sets as batches.
-
-    Generates both row graphs and column graphs based on the rules
-    for row and column set generation.
+    For each edge of the graph, ground truth classifies it as
+    not same row\col  --> [0, 0, 1]
+    same row only     --> [0, 1, 0]
+    same col only     --> [1, 0, 0]
+    An edge can belong to only one of the 3 classes.
     """
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
-        super(ScitsrGraphRules, self).__init__()
+        super(GraphRulesMultiClass, self).__init__()
 
         self.params = params
         self.rules = GraphRules(self.params)
@@ -42,7 +43,7 @@ class ScitsrGraphRules(Dataset):
             self.imglist = self.check_all()
             with open(self.jsonfile, "w+") as wf:
                 json.dump(self.imglist, wf)
-
+    
     @property
     def raw_file_names(self):
         return []
@@ -53,7 +54,7 @@ class ScitsrGraphRules(Dataset):
 
     def read_structure(self):
         return 
-    
+
     def reset(self):
         pass
 
@@ -106,7 +107,6 @@ class ScitsrGraphRules(Dataset):
                 print("span cells:", id)
         return 1
 
-    
     def readlabel(self, idx):
         imgfn = self.imglist[idx]
        
@@ -236,54 +236,66 @@ class ScitsrGraphRules(Dataset):
             imgpos.append([(1.0 - xt[5]) * 2 - 1.0, xt[4] * 2 - 1.0])
             cell_wh.append([xt[-2], xt[-1]])
 
-        
+
         x = torch.FloatTensor(x)
         pos = torch.FloatTensor(pos)
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
         # Obtain edges from set creation function using positions
         row_edge_index, col_edge_index = self.rule_based_set_generation(pos, img)
-        import pdb; pdb.set_trace()
-        if self.params.gr_single_relationship:
+        
+        # From row_edge_index and col_edge_index get all edges and their label tuples 
+        # for (not same row or col, same row, same col) using self._if_same_row and 
+        # self._if_same_col
+
+        if self.params.gr_multi_class:
+            # Create multi-class dataset
+            edge_dict = {}
+
+            for edge in row_edge_index:
+                edge_key = str(edge[0]) + ':' + str(edge[1])
+                if edge_key not in edge_dict:
+                    if self._if_same_row(edge[0], edge[1], tbpos):
+                        edge_tuple = [0, 1, 0]
+                    elif self._if_same_col(edge[0], edge[1], tbpos):
+                        edge_tuple = [1, 0, 0]
+                    else:
+                        edge_tuple = [0, 0, 1]
+                    edge_dict[edge_key] = edge_tuple
             
-            y_row = self._cal_row_label(row_edge_index, tbpos)
-            y_col = self._cal_col_label(col_edge_index, tbpos)
-            row_edge_index = torch.from_numpy(np.asarray(row_edge_index)).t().contiguous().long()
-            col_edge_index = torch.from_numpy(np.asarray(col_edge_index)).t().contiguous().long()
+            for edge in col_edge_index:
+                edge_key = str(edge[0]) + ':' + str(edge[1])
+                if edge_key not in edge_dict:
+                    if self._if_same_row(edge[0], edge[1], tbpos):
+                        edge_tuple = [0, 1, 0]
+                    elif self._if_same_col(edge[0], edge[1], tbpos):
+                        edge_tuple = [1, 0, 0]
+                    else:
+                        edge_tuple = [0, 0, 1]
+                    edge_dict[edge_key] = edge_tuple
             
-            
-            data_row = Data(x=x, pos=pos, edge_index=row_edge_index)
-            data_col = Data(x=x, pos=pos, edge_index=col_edge_index)
+            edge_index = []
+            edge_gt = []
+            for edge_key in edge_dict.keys():
+                edge_tuple = edge_dict[edge_key]
+                edge_key = [int(x) for x in edge_key.split(':')]
+                edge_index.append(edge_key)
+                edge_gt.append(edge_tuple)
 
-            data_row.y = torch.LongTensor(y_row)
-            data_col.y = torch.LongTensor(y_col)
-            data_row.img = img
-            data_col.img = img
-            data_row.imgpos = torch.FloatTensor(imgpos)
-            data_col.imgpos = torch.FloatTensor(imgpos)
-            data_row.cell_wh = torch.FloatTensor(cell_wh)
-            data_col.cell_wh = torch.FloatTensor(cell_wh)
-            data_row.nodenum = torch.LongTensor([len(structs)])
-            data_col.nodenum = torch.LongTensor([len(structs)])
+            edge_index = torch.from_numpy(np.asarray(edge_index)).t().contiguous().long()
+            edge_gt = torch.from_numpy(np.asarray(edge_gt)).t().contiguous().long().permute(1, 0)
 
-            return data_row, data_col
+            data = Data(x=x, pos=pos, img=img, edge_index=edge_index)
 
-        elif self.params.gr_multi_label:
-            # Create multi-label dataset
-            raise NotImplementedError
+            data.gt = torch.LongTensor(edge_gt)
+            data.imgpos = torch.FloatTensor(imgpos)
+            data.cell_wh = torch.FloatTensor(cell_wh)
+            data.nodenum = torch.LongTensor([len(structs)])
 
-        elif self.params.gr_multi_task:
-            # Create multi-task datase
-            raise NotImplementedError
+            return data
 
     def rule_based_set_generation(self, pos, img):
         if self.params.rules_constraint == 'naive_gaussian':
             return self.rules.naive_gaussian(pos, img)
-
-    def _cal_row_label(self, row_edge_index, tbpos):
-        y = []
-        for edge in row_edge_index:
-            y.append(self._if_same_row(edge[0], edge[1], tbpos))
-        return y
 
     def _if_same_row(self, si, ei, tbpos):
         ss, se = tbpos[si][0], tbpos[si][1]
@@ -293,12 +305,6 @@ class ScitsrGraphRules(Dataset):
         if (es >= ss and ee <= se):
             return 1
         return 0
-    
-    def _cal_col_label(self, col_edge_index, tbpos):
-        y = []
-        for edge in col_edge_index:
-            y.append(self._if_same_col(edge[0], edge[1], tbpos))
-        return y
 
     def _if_same_col(self, si, ei, tbpos):
         ss, se = tbpos[si][2], tbpos[si][3]
@@ -308,23 +314,6 @@ class ScitsrGraphRules(Dataset):
         if (es >= ss and ee <= se):
             return 1
         return 0
-    
-
-    # TODO: Using list of lists version of edge index for same row or col calculation
-    # Uncomment the following for using pytorch geometric dataloader for same row/col calculation
-    # def _cal_row_label(self, data, tbpos):
-    #     edges = data.edge_index
-    #     y = []
-    #     for i in range(edges.size()[1]):
-    #         y.append(self.if_same_row(edges[0, i], edges[1, i], tbpos))
-    #     return y
-
-    # def _cal_col_label(self, data, tbpos):
-    #     edges = data.edge_index
-    #     y = []
-    #     for i in range(edges.size()[1]):
-    #         y.append(self.if_same_col(edges[0, i], edges[1, i], tbpos))
-    #     return y
 
 
 if __name__ == '__main__':
@@ -333,30 +322,10 @@ if __name__ == '__main__':
     
     params = scitsr_params()
     print(params)
-    val_dataset = ScitsrGraphRules(params, partition='test')
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True)
+    val_dataset = GraphRulesMultiClass(params, partition='train')
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
     
     for idx, data in enumerate(val_loader):
-        data_row, data_col = data
+        print(data)
         import pdb; pdb.set_trace()
-        # img = data_row.img
-        # img = torch.squeeze(img, dim=0).permute(1, 2, 0).numpy()
-        # pos = data_row.pos.numpy()
 
-        # x_scatter = pos[:, 0] * 1024
-        # y_scatter = pos[:, 1] * 1024
-        # # plot image and overlay scatter plot
-        # fig, ax = plt.subplots()
-        # ax.scatter(x_scatter, y_scatter, c='green')
-        # ax.imshow(img)
-        # plt.show()
-        # import pdb; pdb.set_trace()
-    import pdb; pdb.set_trace()
-
-
-
-
-
-    
-
-    

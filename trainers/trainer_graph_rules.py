@@ -21,7 +21,7 @@ from sklearn.metrics import precision_score, recall_score
 
 from models.graph_rules import GraphRulesSingleRelationship, GraphRulesMultiLabel, GraphRulesMultiTask
 from dataloaders.scitsr_graph_rules import ScitsrGraphRules
-from misc.args import scitsr_params, base_params, trainer_params
+from misc.args import scitsr_params, base_params, trainer_params, img_model_params
 from ops.utils import cal_adj_label
 from ops.misc import weights_init, mkdir_p
 
@@ -29,11 +29,13 @@ def main(config):
     dataset_params = config['dataset_params']
     base_params = config['base_params']
     trainer_params = config['trainer_params']
+    img_model_params = config['img_model_params']
 
     # Define dataloader
     train_dataset = ScitsrGraphRules(dataset_params, partition='train')
     train_loader = DataLoader(train_dataset, batch_size=trainer_params.batch_size, shuffle=True, 
-                              num_workers=8, pin_memory=True)
+                              num_workers=4, pin_memory=True)
+    # train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)  # Uncomment when testing new functionality
 
     val_dataset = ScitsrGraphRules(dataset_params, partition='test')
     # Using batch size of 1 for validation with adjacency matrix
@@ -42,8 +44,8 @@ def main(config):
     
     # Define model and initialize weights
     if dataset_params.gr_single_relationship:
-        row_model = GraphRulesSingleRelationship(base_params)
-        col_model = GraphRulesSingleRelationship(base_params)
+        row_model = GraphRulesSingleRelationship(base_params, img_model_params)
+        col_model = GraphRulesSingleRelationship(base_params, img_model_params)
         row_model.apply(weights_init)
         # row_model = nn.DataParallel(row_model)
         col_model.apply(weights_init)
@@ -112,7 +114,7 @@ def main(config):
                 if dataset_params.gr_single_relationship:
                     train_out_dict = train_sr_overfit_one_batch(row_model, col_model, row_optimizer, col_optimizer, data, loss_criteria)
                 
-                # wandb.log(train_out_dict)
+                wandb.log(train_out_dict)
                 t.set_postfix(train_out_dict)
                 t.update()
     else:
@@ -448,6 +450,7 @@ if __name__ == '__main__':
     # Get argument dictionaries
     base_params = base_params()
     dataset_params = scitsr_params()
+    img_model_params = img_model_params()
     trainer_params = trainer_params()
 
     # Seed things
@@ -491,7 +494,8 @@ if __name__ == '__main__':
     namespace_config_dict = {
                                 'dataset_params': dataset_params,
                                 'base_params': base_params,
-                                'trainer_params': trainer_params
+                                'trainer_params': trainer_params, 
+                                'img_model_params': img_model_params
                             }
 
     main(config=namespace_config_dict)

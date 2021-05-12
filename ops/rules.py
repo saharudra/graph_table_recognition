@@ -97,9 +97,10 @@ class GraphRules():
             for cid in range(cols):
                 if adj_mat[rid, cid] == 1:
                     edge_index.append([rid, cid])
-        edge_index = torch.from_numpy(np.asarray(edge_index))
-        edge_index = edge_index.t().contiguous().long()
-
+        # TODO: Uncomment below lines to convert a list of list edge_index to 
+        # 2D tensor for edge index
+        # edge_index = torch.from_numpy(np.asarray(edge_index))
+        # edge_index = edge_index.t().contiguous().long()
         return edge_index
 
 

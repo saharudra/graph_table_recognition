@@ -1,4 +1,7 @@
 import torch
+import torch.nn as nn
+import torch_geometric.nn as tgnn
+
 import os 
 import errno
 import numpy as np
@@ -15,7 +18,9 @@ def mkdir_p(path):
 # custom weight initialization
 def weights_init(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
+    if isinstance(m, nn.Conv2d):
+        m.weight.data.normal_(0.0, 0.02)
+    elif isinstance(m, tgnn.GCNConv):
         m.weight.data.normal_(0.0, 0.02)
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)

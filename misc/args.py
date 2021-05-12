@@ -76,9 +76,9 @@ def scitsr_params():
                         help='where to put the mean location for 1-D Gaussians, centroid | tlbr')
 
     # Type of Graph generation rules params
-    parser.add_argument('--gr_single_relationship', type=bool, default=True,
+    parser.add_argument('--gr_single_relationship', type=bool, default=False,
                         help='row only/col only models')
-    parser.add_argument('--gr_multi_label', type=bool, default=False,
+    parser.add_argument('--gr_multi_class', type=bool, default=True,
                         help='graph combines both row and col adjacency rule matrices\
                               edges have both row and column labels')
     parser.add_argument('--gr_multi_task', type=bool, default=False,
@@ -109,7 +109,7 @@ def img_model_params():
     # GFTE img model arguments
     parser.add_argument('--ks', nargs='+', default=[3, 3, 3],
                         help='kernel size for convolution')
-    parser.add_argument('--nif', nargs="+", default=[64, 64, 64],
+    parser.add_argument('--nif', nargs="+", default=[64, 64, 128],
                         help='number of features for each conv operation')
     parser.add_argument('--ss', nargs="+", default=[1, 1, 1],
                         help='stride for convolution')
@@ -194,7 +194,7 @@ def trainer_params():
     # Base arguments
     parser.add_argument('--exp', type=str, default='graph_rules_results',
                         help='task to be run, defines save directory root.')
-    parser.add_argument('--run', type=str, default='precision_recall_checks',
+    parser.add_argument('--run', type=str, default='multi_class',
                         help='model version to be run')
     parser.add_argument('--overfit_one_batch', type=bool, default=False,
                         help='whether overfitting the model under consideration on a single batch')
@@ -208,12 +208,12 @@ def trainer_params():
     #                     help='major model version to train: 1 | 2 ...')
     # parser.add_argument('--min_ver', type=str, default='c',
     #                     help='minor model version to train 2."a" ...: a | b | c | ...')
-    # parser.add_argument('--row_only', type=bool, default=False,
-    #                     help='trains above model with row only loss and reports row acc.')
-    # parser.add_argument('--col_only', type=bool, default=False,
-    #                     help='trains above model with col only loss and reports col acc.')
-    # parser.add_argument('--multi_task', type=bool, default=False,
-    #                     help='trains above model with multi-task loss and reports row/col acc.')
+    parser.add_argument('--row_only', type=bool, default=False,
+                        help='trains above model with row only loss and reports row acc.')
+    parser.add_argument('--col_only', type=bool, default=True,
+                        help='trains above model with col only loss and reports col acc.')
+    parser.add_argument('--multi_task', type=bool, default=False,
+                        help='trains above model with multi-task loss and reports row/col acc.')
 
     # Dataloader arguments
     parser.add_argument('--dataset', type=str, default='scitsr',
@@ -222,14 +222,14 @@ def trainer_params():
                         help='dataset to be used for evaluating and benchmarking models icdar2013 | icdar2019')
     parser.add_argument('--workers', type=int, default=0,
                         help='number of dataloading workers, not an option in torch_geometric')
-    parser.add_argument('--batch_size', type=int, default=64,
+    parser.add_argument('--batch_size', type=int, default=2,
                         help='input batch size')
     parser.add_argument('--batched', type=bool, default=True,
                         help='whether models are processing samples in a batched manner or one at a time.')
 
     # Training arguments
     # Lenth of trainingarguments
-    parser.add_argument('--num_epochs', type=int, default=1000, 
+    parser.add_argument('--num_epochs', type=int, default=500, 
                         help='number of epochs to train for')
     parser.add_argument('--early_stopping', type=bool, default=False,
                         help='whether to perform early_stopping')
@@ -294,7 +294,7 @@ def evaluation_params():
     # dataset specific arguments
     parser.add_argument('--eval_dataset', type=str, default='icdar2013',
                         help='dataset used for evaluation. icdar2013 | icdar2019  | pubtabnet')
-    parser.add_argument('--data_dir', type=str, default='/data/rudra/table_structure_recognition/datasets/icdar/2013_eu',
+    parser.add_argument('--data_dir', type=str, default='/data/rudra/table_structure_recognition/datasets/icdar/2013_eu  ',
                           help='eval_data_dir')
     
 
