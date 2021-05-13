@@ -196,7 +196,7 @@ def trainer_params():
                         help='task to be run, defines save directory root.')
     parser.add_argument('--run', type=str, default='multi_class',
                         help='model version to be run')
-    parser.add_argument('--overfit_one_batch', type=bool, default=False,
+    parser.add_argument('--overfit_one_batch', type=bool, default=True,
                         help='whether overfitting the model under consideration on a single batch')
     parser.add_argument('--seed', type=int, default=1234, 
                         help='seed value for reproducibility')
@@ -222,9 +222,9 @@ def trainer_params():
                         help='dataset to be used for evaluating and benchmarking models icdar2013 | icdar2019')
     parser.add_argument('--workers', type=int, default=0,
                         help='number of dataloading workers, not an option in torch_geometric')
-    parser.add_argument('--batch_size', type=int, default=16,
+    parser.add_argument('--batch_size', type=int, default=2,
                         help='input batch size')
-    parser.add_argument('--pin_memory', type=bool, default=True, 
+    parser.add_argument('--pin_memory', type=bool, default=False, 
                         help='https://stackoverflow.com/questions/55563376/pytorch-how-does-pin-memory-work-in-dataloader')
     parser.add_argument('--batched', type=bool, default=True,
                         help='whether models are processing samples in a batched manner or one at a time.')

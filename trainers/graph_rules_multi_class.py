@@ -113,8 +113,30 @@ def main(config):
         print("Best validation accuracy: {}, in epoch: {}".format(best_accuracy, best_epoch))
 
 
-def overfit_one_batch():
-    pass
+def overfit_one_batch(model, optimizer, data, loss_criteria):
+    # Get data
+    data = data.to(DEVICE)
+    # Flush old gradients
+    optimizer.zero_grad()
+
+    # Compute model losses
+    logits = model(data)
+    batch_loss = loss_function(logits, data.gt, loss_criteria)
+
+    # Update models and optimizers
+    batch_loss.backward()
+    optimizer.step()
+    
+    # Aggregate losses
+    loss = batch_loss.detach().item() / len(data.gt)
+
+    # Calculate accuracy
+    pred = torch.argmax(logits)
+    
+
+
+
+
 
 def train():
     pass
@@ -122,7 +144,7 @@ def train():
 def eval():
     pass
 
-def loss_function(logits, gt, loss_criteria, task):
+def loss_function(logits, gt, loss_criteria):
     loss = loss_criteria(logits, gt)
     return loss
 
