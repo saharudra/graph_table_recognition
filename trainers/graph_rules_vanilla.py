@@ -7,19 +7,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data 
-from torch_geometric.data import Dataset, DataLoader
+from torch_geometric.data import DataLoader
 
 import numpy as np
 import os
-import math
-import json
 import random
 import wandb
 from datetime import datetime
 from tqdm import trange
 from sklearn.metrics import precision_score, recall_score
 
-from models.graph_rules import GraphRulesSingleRelationship, GraphRulesMultiLabel, GraphRulesMultiTask
+from models.graph_rules import GraphRulesSingleRelationship
 from dataloaders.scitsr_graph_rules import ScitsrGraphRules
 from misc.args import scitsr_params, base_params, trainer_params, img_model_params
 from ops.utils import cal_adj_label
@@ -52,14 +50,6 @@ def main(config):
         # col_model = nn.DataParallel(col_model)
         col_model.to(DEVICE)
         row_model.to(DEVICE)
-    elif dataset_params.gr_multi_label:
-        model = GraphRulesMultiLabel(base_params)
-        model.to(DEVICE)
-        model.apply(weights_init)
-    elif dataset_params.gr_multi_task:
-        model = GraphRulesMultiTask(base_params)
-        model.to(DEVICE)
-        model.apply(weights_init)
 
     # Define optimizer and learning rate scheduler
     if trainer_params.optimizer == 'adam' and not dataset_params.gr_single_relationship:
@@ -107,7 +97,7 @@ def main(config):
     best_epoch = -1
 
     if trainer_params.overfit_one_batch:
-        print("$$$ OVERFITTING ON ONE BATCH")
+        print("$$$ OVERFITTING ON ONE BATCH $$$")
         data = next(iter(train_loader))
         with trange(trainer_params.num_epochs) as t:
             for epoch in t:
@@ -119,18 +109,13 @@ def main(config):
                 t.update()
     else:
         # Outer training loop
-        print('LENGTH OF TRAINING DATASET: {}, VALIDATION DATASET: {}'.format(len(train_loader), len(val_loader)))
+        print('LENGTH OF TRAINING DATASET: {}, VALIDATION DATASET: {}'.format(len(train_loader.dataset), len(val_loader.dataset)))
         print("$$$ STARTING TRAINING LOOP $$$")
         with trange(trainer_params.num_epochs) as t:
             for epoch in t:
                 # Train a single pass of the model
                 if dataset_params.gr_single_relationship:
-                    train_out_dict = train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria)   
-                    print(train_out_dict)
-                elif dataset_params.gr_multi_label:
-                    train_out_dict = train_ml(model, optimizer, train_loader, loss_criteria)
-                elif dataset_params.gr_multi_task:
-                    train_out_dict = train_mt(model, optimizer, train_loader, loss_criteria)
+                    train_out_dict = train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, loss_criteria)                
                 
                 # Log training info
                 wandb.log(train_out_dict)
@@ -139,12 +124,6 @@ def main(config):
                 if epoch % trainer_params.val_interval == 0:
                     if dataset_params.gr_single_relationship:
                         eval_out_dict = eval_sr(row_model, col_model, val_loader, loss_criteria)
-                        print(eval_out_dict)
-                    elif dataset_params.gr_multi_label:
-                        eval_out_dict = eval_ml(model, val_loader, loss_criteria)
-                    elif dataset_params.gr_multi_task:
-                        eval_out_dict = eval_mt(model, val_loader, loss_criteria)
-                    
                     wandb.log(eval_out_dict)
 
                 # Schedule learning rate
@@ -298,9 +277,9 @@ def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, l
         col_optimizer.step()
 
         # Aggregate losses
-        row_loss += batch_row_loss.item()
-        col_loss += batch_col_loss.item()
-        train_loss += (batch_row_loss.item() + batch_col_loss.item())
+        row_loss += batch_row_loss.detach().item()
+        col_loss += batch_col_loss.detach().item()
+        train_loss += (batch_row_loss.detach().item() + batch_col_loss.detach().item())
     
     train_loss /= len(train_loader.dataset)
     row_loss /= len(train_loader.dataset)
@@ -313,20 +292,6 @@ def train_sr(row_model, col_model, row_optimizer, col_optimizer, train_loader, l
     }
 
     return out_dict
-
-
-def train_ml(model, optimizer, train_loader, loss_criteria):
-    """
-    Multi-label: Model produces all of the labels together
-    """
-    raise NotImplementedError
-        
-
-def train_mt(model, optimizer, train_loader, loss_criteria):
-    """
-    Multi-task: Model produces separate row and col predictions
-    """
-    raise NotImplementedError
 
 
 def eval_sr(row_model, col_model, val_loader, loss_criteria):
@@ -381,8 +346,11 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
             n_total_col += col_label.shape[0]
 
             # Calculate Precision, Recall and F1 Score for cell adjacency
-            gt_adjacency_mat = cal_adj_label(row_data, col_data, row_label, col_label)
-            pred_adjacency_mat = cal_adj_label(row_data, col_data, row_pred, col_pred)
+            row_edge_index = row_data.edge_index.cpu().numpy()
+            col_edge_index = col_data.edge_index.cpu().numpy()
+            num_cells = row_data.pos.shape[0]
+            gt_adjacency_mat = cal_adj_label(row_edge_index, col_edge_index, row_label, col_label, num_cells)
+            pred_adjacency_mat = cal_adj_label(row_edge_index, col_edge_index, row_pred, col_pred, num_cells)
             
             precision = precision_score(gt_adjacency_mat.flatten(), pred_adjacency_mat.flatten(), zero_division=0)
             recall = recall_score(gt_adjacency_mat.flatten(), pred_adjacency_mat.flatten())
@@ -420,15 +388,6 @@ def eval_sr(row_model, col_model, val_loader, loss_criteria):
     }
 
     return out_dict
-
-
-
-def eval_ml(model, val_loader, loss_criteria):
-    raise NotImplementedError
-
-
-def eval_mt(model, val_loader, loss_criteria):
-    raise NotImplementedError
 
 
 def loss_function(logits, gt, loss_criteria, task):

@@ -16,16 +16,16 @@ from misc.args import scitsr_params
 from ops.rules import GraphRules
 from ops.utils import resize_image
 
-class GraphRulesMultiClass(Dataset):
+class GraphRulesMultiClassLoader(Dataset):
     """
     For each edge of the graph, ground truth classifies it as
-    not same row\col  --> [0, 0, 1]
-    same row only     --> [0, 1, 0]
-    same col only     --> [1, 0, 0]
+    not same row\col  --> 0
+    same row only     --> 1
+    same col only     --> 2
     An edge can belong to only one of the 3 classes.
     """
     def __init__(self, params, partition='train', transform=None, pre_transform=None):
-        super(GraphRulesMultiClass, self).__init__()
+        super(GraphRulesMultiClassLoader, self).__init__()
 
         self.params = params
         self.rules = GraphRules(self.params)
@@ -212,6 +212,28 @@ class GraphRulesMultiClass(Dataset):
 
         return xt
 
+    def rule_based_set_generation(self, pos, img):
+        if self.params.rules_constraint == 'naive_gaussian':
+            return self.rules.naive_gaussian(pos, img)
+
+    def _if_same_row(self, si, ei, tbpos):
+        ss, se = tbpos[si][0], tbpos[si][1]
+        es, ee = tbpos[ei][0], tbpos[ei][1]
+        if (ss >= es and se <= ee):
+            return 1
+        if (es >= ss and ee <= se):
+            return 1
+        return 0
+
+    def _if_same_col(self, si, ei, tbpos):
+        ss, se = tbpos[si][2], tbpos[si][3]
+        es, ee = tbpos[ei][2], tbpos[ei][3]
+        if (ss>= es and se <= ee):
+            return 1
+        if (es >= ss and ee <= se):
+            return 1
+        return 0
+
     def __getitem__(self, idx):
         # structs, chunks, img, scaling_params = self.readlabel(idx)
         structs, chunks, img, rescale_params = self.readlabel(idx)
@@ -242,7 +264,7 @@ class GraphRulesMultiClass(Dataset):
         img = torch.FloatTensor(img / 255.0).permute(2, 0, 1).unsqueeze(0)
         # Obtain edges from set creation function using positions
         row_edge_index, col_edge_index = self.rule_based_set_generation(pos, img)
-        
+
         # From row_edge_index and col_edge_index get all edges and their label tuples 
         # for (not same row or col, same row, same col) using self._if_same_row and 
         # self._if_same_col
@@ -251,69 +273,54 @@ class GraphRulesMultiClass(Dataset):
             # Create multi-class dataset
             edge_dict = {}
 
+            # TODO: Check cartesian products of database joins (right join or left) to see if the outcom
+            # is in sorted order.
             for edge in row_edge_index:
-                edge_key = str(edge[0]) + ':' + str(edge[1])
+                edge_key = str(edge)
                 if edge_key not in edge_dict:
                     if self._if_same_row(edge[0], edge[1], tbpos):
-                        edge_tuple = [0, 1, 0]
+                        edge_gt = 1
                     elif self._if_same_col(edge[0], edge[1], tbpos):
-                        edge_tuple = [1, 0, 0]
+                        edge_gt = 2
                     else:
-                        edge_tuple = [0, 0, 1]
-                    edge_dict[edge_key] = edge_tuple
+                        edge_gt = 0
+                    edge_dict[edge_key] = edge_gt
             
             for edge in col_edge_index:
-                edge_key = str(edge[0]) + ':' + str(edge[1])
+                edge_key = str(edge)
                 if edge_key not in edge_dict:
                     if self._if_same_row(edge[0], edge[1], tbpos):
-                        edge_tuple = [0, 1, 0]
+                        edge_tuple = 1
                     elif self._if_same_col(edge[0], edge[1], tbpos):
-                        edge_tuple = [1, 0, 0]
+                        edge_tuple = 2
                     else:
-                        edge_tuple = [0, 0, 1]
+                        edge_tuple = 0
                     edge_dict[edge_key] = edge_tuple
             
             edge_index = []
-            edge_gt = []
-            for edge_key in edge_dict.keys():
-                edge_tuple = edge_dict[edge_key]
-                edge_key = [int(x) for x in edge_key.split(':')]
+            gt = []
+            
+            for edge_key in sorted(edge_dict, key=lambda x: list(x)[0]):
+                edge_gt = edge_dict[edge_key]
+                # Convert edge_key from string rep of list to list of int
+                edge_key = [int(x) for x in edge_key.strip('][').split(', ')]
                 edge_index.append(edge_key)
-                edge_gt.append(edge_tuple)
+                gt.append(edge_gt)
 
             edge_index = torch.from_numpy(np.asarray(edge_index)).t().contiguous().long()
-            edge_gt = torch.from_numpy(np.asarray(edge_gt)).t().contiguous().long().permute(1, 0)
+            gt = torch.from_numpy(np.asarray(gt)).t().contiguous().long()
+            row_edge_index = torch.from_numpy(np.asarray(row_edge_index)).t().contiguous().long()
+            col_edge_index = torch.from_numpy(np.asarray(col_edge_index)).t().contiguous().long()
 
             data = Data(x=x, pos=pos, img=img, edge_index=edge_index)
-
-            data.gt = torch.LongTensor(edge_gt)
+            # data.row_edge_index = row_edge_index
+            # data.col_edge_index = col_edge_index
+            data.gt = torch.LongTensor(gt)
             data.imgpos = torch.FloatTensor(imgpos)
             data.cell_wh = torch.FloatTensor(cell_wh)
             data.nodenum = torch.LongTensor([len(structs)])
 
             return data
-
-    def rule_based_set_generation(self, pos, img):
-        if self.params.rules_constraint == 'naive_gaussian':
-            return self.rules.naive_gaussian(pos, img)
-
-    def _if_same_row(self, si, ei, tbpos):
-        ss, se = tbpos[si][0], tbpos[si][1]
-        es, ee = tbpos[ei][0], tbpos[ei][1]
-        if (ss >= es and se <= ee):
-            return 1
-        if (es >= ss and ee <= se):
-            return 1
-        return 0
-
-    def _if_same_col(self, si, ei, tbpos):
-        ss, se = tbpos[si][2], tbpos[si][3]
-        es, ee = tbpos[ei][2], tbpos[ei][3]
-        if (ss>= es and se <= ee):
-            return 1
-        if (es >= ss and ee <= se):
-            return 1
-        return 0
 
 
 if __name__ == '__main__':
@@ -322,7 +329,7 @@ if __name__ == '__main__':
     
     params = scitsr_params()
     print(params)
-    val_dataset = GraphRulesMultiClass(params, partition='train')
+    val_dataset = GraphRulesMultiClassLoader(params, partition='train')
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
     
     for idx, data in enumerate(val_loader):

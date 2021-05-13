@@ -112,8 +112,11 @@ def eval_sr(row_model, col_model, eval_loader, loss_criteria):
             n_total_col += col_label.shape[0]
 
             # Calculate Precision, Recall and F1 Score for cell adjacency
-            gt_adjacency_mat = cal_adj_label(row_data, col_data, row_label, col_label)
-            pred_adjacency_mat = cal_adj_label(row_data, col_data, row_pred, col_pred)
+            row_edge_index = row_data.edge_index.cpu().numpy()
+            col_edge_index = col_data.edge_index.cpu().numpy()
+            num_cells = row_data.pos.shape[0]
+            gt_adjacency_mat = cal_adj_label(row_edge_index, col_edge_index, row_label, col_label, num_cells)
+            pred_adjacency_mat = cal_adj_label(row_edge_index, col_edge_index, row_pred, col_pred, num_cells)
             
             precision = precision_score(gt_adjacency_mat.flatten(), pred_adjacency_mat.flatten(), zero_division=0)
             recall = recall_score(gt_adjacency_mat.flatten(), pred_adjacency_mat.flatten())

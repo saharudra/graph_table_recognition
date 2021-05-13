@@ -51,3 +51,12 @@
 * Validation: SciTSR
     * Transfer learning on ICDAR 2013
 * Testing: ICDAR 2013, ICDAR 2019
+
+#### Additions:
+* Sampling of cells 
+    * How to sample?
+    * Get edges only for the sampled cells
+* Cartesian Products for reducing double for loop in edge generation
+    * Sort Join:
+        * Right join in RDBMS literature does this
+    * Hash Join

@@ -222,13 +222,15 @@ def trainer_params():
                         help='dataset to be used for evaluating and benchmarking models icdar2013 | icdar2019')
     parser.add_argument('--workers', type=int, default=0,
                         help='number of dataloading workers, not an option in torch_geometric')
-    parser.add_argument('--batch_size', type=int, default=2,
+    parser.add_argument('--batch_size', type=int, default=16,
                         help='input batch size')
+    parser.add_argument('--pin_memory', type=bool, default=True, 
+                        help='https://stackoverflow.com/questions/55563376/pytorch-how-does-pin-memory-work-in-dataloader')
     parser.add_argument('--batched', type=bool, default=True,
                         help='whether models are processing samples in a batched manner or one at a time.')
 
     # Training arguments
-    # Lenth of trainingarguments
+    # Lenth of training arguments
     parser.add_argument('--num_epochs', type=int, default=500, 
                         help='number of epochs to train for')
     parser.add_argument('--early_stopping', type=bool, default=False,

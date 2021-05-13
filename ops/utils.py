@@ -144,7 +144,7 @@ def resize(image, output_shape, order=1, mode='constant', cval=0, clip=True,
             preserve_range=preserve_range)
 
 
-def cal_adj_label(data_row, data_col, y_row, y_col):
+def cal_adj_label(row_edge_index, col_edge_index, y_row, y_col, num_cells):
         """
         :input:
             :y_row: adjacency matrix for cells that are part of the same row
@@ -153,11 +153,6 @@ def cal_adj_label(data_row, data_col, y_row, y_col):
             :y_adj: adjacency matrix for cells that are immediate neigbhors either
                     row or column wise.
         """
-        
-        row_edge_index = data_row.edge_index.cpu().numpy()
-        col_edge_index = data_col.edge_index.cpu().numpy()
-
-        num_cells = data_row.pos.shape[0]
 
         adjacency_mat = np.zeros((num_cells, num_cells))
 
@@ -243,3 +238,10 @@ def check_same_row(end_cell_idx, end_cells_added, y_row, row_edge_index):
             same_row = False
 
     return same_row
+
+
+def cal_adj_label_multi_class(edge_index, gt, num_cells):
+    """
+    
+    """
+
