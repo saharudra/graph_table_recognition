@@ -30,7 +30,7 @@ def scitsr_params():
     parser = argparse.ArgumentParser(description="Arguments for prepairing SciTSR table recognition task dataset")
     
     # Data arguments
-    parser.add_argument('--data_dir', type=str, default='/data/rudra/table_structure_recognition/datasets/SciTSR',
+    parser.add_argument('--data_dir', type=str, default='/Users/i23271/Downloads/table/datasets/SciTSR',
                         help='data directory')
 
     # Data processing arguments
@@ -269,8 +269,11 @@ def trainer_params():
                         help='weigtage applied to the positive class as more 1s than 0s')
 
     # Logging arguments
-    parser.add_argument('--val_interval', type=int, default=50,
+    parser.add_argument('--val_interval', type=int, default=5,
                         help='interval at which validation will be performed and logged')
+    parser.add_argument('--infer_interval', type=int, default=50,
+                        help='interval at which granular accuracy calculation and evaluation metrics (F1) calculation' + \
+                        'will be performed')
     parser.add_argument('--save_interval', type=int, default=1,
                         help='interval at which model check will be done to save best')
 

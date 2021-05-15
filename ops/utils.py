@@ -1,4 +1,5 @@
 # Resizing images while preserving aspect ratio
+from operator import gt
 import os
 from PIL import Image
 import numpy as np
@@ -145,69 +146,69 @@ def resize(image, output_shape, order=1, mode='constant', cval=0, clip=True,
 
 
 def cal_adj_label(row_edge_index, col_edge_index, y_row, y_col, num_cells):
-        """
-        :input:
-            :y_row: adjacency matrix for cells that are part of the same row
-            :y_col: adjacency matrix for cells that are part of the same col
-        :output:
-            :y_adj: adjacency matrix for cells that are immediate neigbhors either
-                    row or column wise.
-        """
+    """
+    :input:
+        :y_row: adjacency matrix for cells that are part of the same row
+        :y_col: adjacency matrix for cells that are part of the same col
+    :output:
+        :y_adj: adjacency matrix for cells that are immediate neigbhors either
+                row or column wise.
+    """
 
-        adjacency_mat = np.zeros((num_cells, num_cells))
+    adjacency_mat = np.zeros((num_cells, num_cells))
 
-        # Add using rows only
-        for row_idx in range(num_cells):
-            # Add first same row/col connection directly
-            # Check if second cell with same row/col connection
-            # is in same col/row as that of previously added 
-            # adjacency connections
-            row_added = False
-            end_cells_added = []
-            
-            curr_edge_ends = np.where(row_edge_index[0] == row_idx)[0]
-            for end in curr_edge_ends:
-                # end node of an edge in the edge_index of pytorch geometric data loader output
-                end_cell_idx = row_edge_index[1][end]
-                # Don't do anything for backward linking edges
-                if end_cell_idx < row_idx:
-                    continue
-                elif y_row[end] == 1 and not(row_added):
+    # Add using rows only
+    for row_idx in range(num_cells):
+        # Add first same row/col connection directly
+        # Check if second cell with same row/col connection
+        # is in same col/row as that of previously added 
+        # adjacency connections
+        row_added = False
+        end_cells_added = []
+        
+        curr_edge_ends = np.where(row_edge_index[0] == row_idx)[0]
+        for end in curr_edge_ends:
+            # end node of an edge in the edge_index of pytorch geometric data loader output
+            end_cell_idx = row_edge_index[1][end]
+            # Don't do anything for backward linking edges
+            if end_cell_idx < row_idx:
+                continue
+            elif y_row[end] == 1 and not(row_added):
+                adjacency_mat[row_idx][end_cell_idx] = 1
+                end_cells_added.append(end_cell_idx)
+                row_added = True
+            elif y_row[end] == 1 and row_added:
+                # check if end_cell_idx is in the same col as end_cells_added
+                # for the given row_idx
+                # If in the same col then add to adj_mat else its part
+                # of the same row but not adjacent
+                if check_same_col(end_cell_idx, end_cells_added, y_col, col_edge_index):
                     adjacency_mat[row_idx][end_cell_idx] = 1
                     end_cells_added.append(end_cell_idx)
-                    row_added = True
-                elif y_row[end] == 1 and row_added:
-                    # check if end_cell_idx is in the same col as end_cells_added
-                    # for the given row_idx
-                    # If in the same col then add to adj_mat else its part
-                    # of the same row but not adjacent
-                    if check_same_col(end_cell_idx, end_cells_added, y_col, col_edge_index):
-                        adjacency_mat[row_idx][end_cell_idx] = 1
-                        end_cells_added.append(end_cell_idx)
-        
-        # Add using cols only
-        for col_idx in range(num_cells):
-            col_added = False
-            end_cells_added = []
+    
+    # Add using cols only
+    for col_idx in range(num_cells):
+        col_added = False
+        end_cells_added = []
 
-            curr_edge_ends = np.where(col_edge_index[0] == col_idx)[0]
-            for end in curr_edge_ends:
-                end_cell_idx = col_edge_index[1][end]
-                if end_cell_idx < col_idx:
-                    continue
-                elif y_col[end] == 1 and not(col_added):
+        curr_edge_ends = np.where(col_edge_index[0] == col_idx)[0]
+        for end in curr_edge_ends:
+            end_cell_idx = col_edge_index[1][end]
+            if end_cell_idx < col_idx:
+                continue
+            elif y_col[end] == 1 and not(col_added):
+                adjacency_mat[col_idx][end_cell_idx] = 1
+                end_cells_added.append(end_cell_idx)
+                col_added = True
+            elif y_col[end] == 1 and col_added:
+                if check_same_row(end_cell_idx, end_cells_added, y_row, row_edge_index):
                     adjacency_mat[col_idx][end_cell_idx] = 1
                     end_cells_added.append(end_cell_idx)
-                    col_added = True
-                elif y_col[end] == 1 and col_added:
-                    if check_same_row(end_cell_idx, end_cells_added, y_row, row_edge_index):
-                        adjacency_mat[col_idx][end_cell_idx] = 1
-                        end_cells_added.append(end_cell_idx)
 
-        # Copy upper triangular matrix to lower one as adjacency is symmetrical
-        adjacency_mat = adjacency_mat + adjacency_mat.T - np.diag(np.diag(adjacency_mat))
-        
-        return adjacency_mat
+    # Copy upper triangular matrix to lower one as adjacency is symmetrical
+    adjacency_mat = adjacency_mat + adjacency_mat.T - np.diag(np.diag(adjacency_mat))
+    
+    return adjacency_mat
 
 
 def check_same_col(end_cell_idx, end_cells_added, y_col, col_edge_index):
@@ -240,8 +241,96 @@ def check_same_row(end_cell_idx, end_cells_added, y_row, row_edge_index):
     return same_row
 
 
-def cal_adj_label_multi_class(edge_index, gt, num_cells):
+def cal_adj_label_multi_class(edge_index, rel, num_cells):
     """
+    Each edge of the edge index can have one of the following kinds of relationship:
+    not same row/col    --> 0
+    same row            --> 1
+    same col            --> 2
+    """
+
+    adjacency_mat = np.zeros((num_cells, num_cells))
     
-    """
+    # Add using rows only
+    for row_idx in range(num_cells):
+        # Add first same row connection i.e. rel is 1
+        # Check if second cell with same row is in the same
+        # col of the previously added cells
+        row_added = False
+        end_cells_added = []
+
+        curr_edge_ends = np.where(edge_index[0] == row_idx)[0]
+        for end in curr_edge_ends:
+            # end node of an edge in the edge_index of pytorch geometric data loader output
+            end_cell_idx = edge_index[1][end]
+            # Don't do anything for backward linking edges
+            if end_cell_idx < row_idx:
+                continue
+            elif rel[end] == 1 and not(row_added):
+                adjacency_mat[row_idx][end_cell_idx] = 1
+                end_cells_added.append(end_cell_idx)
+                row_added = True
+            elif rel[end] == 1 and row_added:
+                if check_same_col_multi(end_cell_idx, end_cells_added, rel, edge_index):
+                    adjacency_mat[row_idx][end_cell_idx] = 1
+                    end_cells_added.append(end_cell_idx)
+                    
+    # Add using cols only
+    for col_idx in range(num_cells):
+        # Add first same col connection i.e rel is 2
+        # Check if second cell with same col is in the same row
+        # of the previously added cells
+        col_added = False
+        end_cells_added = []
+
+        curr_edge_ends = np.where(edge_index[0] == col_idx)[0]
+        for end in curr_edge_ends:
+            # end node of an edge in the edge_index of pytorch geometric data loader output
+            end_cell_idx = edge_index[1][end]
+            # Don't do anything for backward linking edges
+            if end_cell_idx < col_idx:
+                continue
+            elif rel[end] == 2 and not(col_added):
+                adjacency_mat[col_idx][end_cell_idx] = 1
+                end_cells_added.append(end_cell_idx)
+                col_added = True
+            elif rel[end] == 2 and col_added:
+                if check_same_row_multi(end_cell_idx, end_cells_added, rel, edge_index):
+                    adjacency_mat[col_idx][end_cell_idx] = 1
+                    end_cells_added.append(end_cell_idx)
+    # Copy upper triangular matrix to lower one as adjacency is symmetrical
+    adjacency_mat = adjacency_mat + adjacency_mat.T - np.diag(np.diag(adjacency_mat))
+    
+    return adjacency_mat
+
+
+def check_same_col_multi(end_cell_idx, end_cells_added, rel, edge_index):
+    same_col = True
+    for prev_cell in end_cells_added:
+        gt_idx = np.intersect1d(np.where(edge_index[0] == end_cell_idx), 
+                                    np.where(edge_index[1] == prev_cell))
+        if len(gt_idx) == 0:
+            same_col = False
+        elif len(gt_idx) == 1 and rel[gt_idx[0]] == 2:
+            continue
+        else:
+            same_col = False
+    return same_col
+
+
+def check_same_row_multi(end_cell_idx, end_cells_added, rel, edge_index):
+    same_row = True
+    for prev_cell in end_cells_added:
+        gt_idx = np.intersect1d(np.where(edge_index[0] == end_cell_idx), 
+                                np.where(edge_index[1] == prev_cell))
+        if len(gt_idx) == 0:
+            same_row = False
+        elif len(gt_idx) == 1 and rel[gt_idx[0]] == 1:
+            continue
+        else:
+            same_row = False
+    
+    return same_row
+
+
 

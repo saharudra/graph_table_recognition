@@ -146,7 +146,7 @@ def train_sr_overfit_one_batch(model, optimizer, data, loss_criteria, trainer_pa
     elif trainer_params.col_only == True:
         row_data, col_data = data
         data = col_data
-    data = data.to(DEVICE)
+    data.to(DEVICE)
 
     # Gather model output and convert into a row tensor same as the ground truth
     logits = model(data)
@@ -177,7 +177,7 @@ def train_sr_overfit_one_batch(model, optimizer, data, loss_criteria, trainer_pa
     n_correct = (label == pred).sum()
     n_correct_one = (label == all_one).sum()
     n_correct_zero = (label == all_zeros).sum()
-    n_total_row = label.shape[0]
+    n_total = label.shape[0]
 
     acc = n_correct / n_total
     all_one_acc = n_correct_one / n_total
@@ -210,7 +210,7 @@ def train_sr(model, optimizer, train_loader, loss_criteria, trainer_params):
             data, _ = data
         elif trainer_params.col_only == True:
             _, data = data
-        data = data.to(DEVICE)
+        data.to(DEVICE)
 
 
         # Gather model output and convert into a row tensor same as the ground truth
@@ -233,20 +233,6 @@ def train_sr(model, optimizer, train_loader, loss_criteria, trainer_params):
     return out_dict
 
 
-def train_ml(model, optimizer, train_loader, loss_criteria, trainer_params):
-    """
-    Multi-label: Model produces all of the labels together
-    """
-    raise NotImplementedError
-        
-
-def train_mt(model, optimizer, train_loader, loss_criteria, trainer_params):
-    """
-    Multi-task: Model produces separate row and col predictions
-    """
-    raise NotImplementedError
-
-
 def eval_sr(model, val_loader, loss_criteria, trainer_params):
     """
     Evaluation of single relationship models
@@ -264,7 +250,7 @@ def eval_sr(model, val_loader, loss_criteria, trainer_params):
                 data, _ = data
             elif trainer_params.col_only == True:
                 _, data = data
-            data = data.to(DEVICE)
+            data.to(DEVICE)
 
             logits = model(data)
             batch_loss = loss_function(logits, data.y, loss_criteria, task='sr')

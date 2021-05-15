@@ -14,12 +14,14 @@ import random
 # import wandb
 from datetime import datetime
 from tqdm import trange
-# from sklearn.metrics import precision_score, recall_score
+from sklearn.metrics import precision_score, recall_score
 
 from models.graph_rules import GraphRulesMultiClass
+from models.graph_rules_with_attention import GraphRulesWithAttentionMultiClass
 from dataloaders.graph_rules_multi_class import GraphRulesMultiClassLoader
 from misc.args import scitsr_params, base_params, trainer_params, img_model_params
 from ops.misc import weights_init, mkdir_p
+from ops.utils import cal_adj_label_multi_class
 
 def main(config):
     dataset_params = config['dataset_params']
@@ -37,7 +39,7 @@ def main(config):
 
     # Define model and initialize weights
     if dataset_params.gr_multi_class:
-        model = GraphRulesMultiClass(base_params)
+        model = GraphRulesWithAttentionMultiClass(base_params)
         model.apply(weights_init)
         model.to(DEVICE)
     else:
@@ -68,10 +70,10 @@ def main(config):
         data = next(iter(train_loader))
         with trange(trainer_params.num_epochs) as t:
             for epoch in t:
-                train_out_dict = overfit_one_batch(model, optimizer, data, loss_criteria)
+                out_dict = overfit_one_batch(model, optimizer, data, loss_criteria)
 
-                # wandb.log(train_out_dict)
-                t.set_postfix(train_out_dict)
+                # wandb.log(out_dict)
+                t.set_postfix(out_dict)
                 t.update()
     else:
         print('LENGTH OF TRAINING DATASET: {}, VALIDATION DATASET: {}'.format(len(train_loader.dataset), len(val_loader.dataset)))
@@ -87,6 +89,11 @@ def main(config):
                 if epoch % trainer_params.val_interval == 0:
                     eval_out_dict = eval(model, val_loader, loss_criteria)
                     # wandb.log(eval_out_dict)
+
+                # Perform inference evaluation at intervals
+                if epoch % trainer_params.inference_interval == 0:
+                    infer_out_dict = infer(model, val_dataset, loss_criteria)
+                    # wandb.log(infer_out_dict)
                 
                 # Schedule learning rate
                 if trainer_params.schedule_lr:
@@ -115,7 +122,7 @@ def main(config):
 
 def overfit_one_batch(model, optimizer, data, loss_criteria):
     # Get data
-    data = data.to(DEVICE)
+    data.to(DEVICE)
     # Flush old gradients
     optimizer.zero_grad()
 
@@ -131,22 +138,172 @@ def overfit_one_batch(model, optimizer, data, loss_criteria):
     loss = batch_loss.detach().item() / len(data.gt)
 
     # Calculate accuracy
-    pred = torch.argmax(logits)
+    _, pred = torch.max(logits, dim=1)
+
+    label = data.gt.detach()
+    pred = pred.detach()
+
+    n_correct = (label == pred).sum().item()
+    n_total = label.shape[0]
+    acc = n_correct / n_total
+
+    out_dict = {
+        'multi_class_accuracy': acc,
+        'multi_class_loss': loss
+    }
+
+    return out_dict
+
+
+def train(model, optimizer, train_loader, loss_criteria):
+    # Set model to train
+    model.train()
+
+    # Initialize losses to be monitored
+    train_loss = 0.0
+
+    for idx, data in enumerate(train_loader):
+        # Get data
+        data.to(DEVICE)
+        # Flush old gradients
+        optimizer.zero_grad()
+
+        # Compute model losses
+        logits = model(data)
+        batch_loss = loss_function(logits, data.gt, loss_criteria)
+
+        # Update models and optimizers
+        batch_loss.backward()
+        optimizer.step()
+
+        train_loss += batch_loss.detach().item()
+
+    train_loss /= len(train_loader.dataset)
+
+    out_dict = {'train_loss_multi_class': train_loss}
+
+    return out_dict
+
+
+def eval(model, val_loader, loss_criteria):
+    model.eval()
+
+    val_loss = 0.0
+    val_acc = 0.0
+    n_correct = 0.0
+    n_total = 0.0
+
+    with torch.no_grad():
+        for idx, data in enumerate(val_loader):
+            # Get data
+            data.to(DEVICE)
+
+            # Compute model losses
+            logits = model(data)
+            batch_loss = loss_function(logits, data.gt, loss_criteria)
+
+            # Obtain losses
+            val_loss += batch_loss.detach().item()
+
+            # Calculate accuracy
+            _, pred = logits.max(1)
+
+            label = data.gt.detach()
+            pred = pred.detach()
+
+            batch_correct = (label == pred).sum().item()
+            batch_total = label.shape[0]
+
+            n_correct += batch_correct
+            n_total += batch_total
+
+    val_acc = n_correct / n_total
+
+    out_dict = {
+        'val_loss_multi_class': val_loss,
+        'val_acc_multi_class': val_acc
+    }
+
+    return out_dict
+
+
+def infer(model, val_dataset, loss_criteria):
+    """
+    Perform granular accuracy checks and metric calculation.
+    Metrics: Precision, Recall, F1
+    """
+    model.eval()
+
+    infer_loss = 0.0
+    infer_acc = 0.0
     
+    infer_F1 = 0.0
+    infer_precision = 0.0
+    infer_recall = 0.0
 
+    with torch.no_grad():
+        for graph in range(len(val_dataset)):
+            # Performing per graph calculation
+            data = val_dataset[graph].to(DEVICE)
 
+            # Gather losses
+            logits = model(data).detach()
+            graph_loss = loss_function(logits, data.gt, loss_criteria)
 
+            # Calculate per graph accuracy
+            graph_correct = 0.0
+            graph_wrong = 0.0
 
+            graph_pred = []
+            for edge in range(len(logits)):
+                pred = torch.argmax(logits[edge]) 
+                graph_pred.append(pred.item())
+                if pred == data.gt[edge]:
+                    graph_correct += 1
+                else:
+                    graph_wrong += 1
 
-def train():
-    pass
+            graph_acc = (graph_correct * 1.0) / (graph_correct + graph_wrong)
 
-def eval():
-    pass
+            # Calculate per graph precision, recall, F1
+            gt_adjacency_mat = cal_adj_label_multi_class(data.edge_index, data.gt.numpy(), data.nodenum[0].item())
+            pred_adjacency_mat = cal_adj_label_multi_class(data.edge_index, graph_pred, data.nodenum[0].item())
+            
+            graph_precision = precision_score(gt_adjacency_mat.flatten(), pred_adjacency_mat.flatten(), zero_division=0)
+            graph_recall = recall_score(gt_adjacency_mat.flatten(), pred_adjacency_mat.flatten())
+            if (graph_precision + graph_recall) != 0.0:            
+                graph_f1 = 2 * (graph_precision * graph_recall) / (graph_precision + graph_recall)
+            else:
+                graph_f1 = 0.0
+
+            # Aggregate metrics
+            infer_acc += graph_acc.detach().item()
+            infer_loss += graph_loss.detach().item()
+            infer_F1 += graph_f1
+            infer_precision += graph_precision
+            infer_recall += graph_recall
+
+    infer_loss /= len(val_dataset)
+    infer_acc /= len(val_dataset)
+    infer_F1 /= len(val_dataset)
+    infer_precision /= len(val_dataset)
+    infer_recall /= len(val_dataset)
+
+    out_dict = {
+        'infer_loss': infer_loss,
+        'infer_acc': infer_acc,
+        'infer_F1': infer_F1,
+        'infer_precision': infer_precision,
+        'infer_recall': infer_recall
+    }
+
+    return out_dict
+
 
 def loss_function(logits, gt, loss_criteria):
     loss = loss_criteria(logits, gt)
     return loss
+
 
 if __name__ == '__main__':
     # Get argument dictionaries

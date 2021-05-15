@@ -33,7 +33,6 @@ class GraphRulesMultiClassLoader(Dataset):
 
         # Create a list of images as a json file
         self.jsonfile = os.path.join(self.root_path, 'imglist_rules.json')
-
         if os.path.exists(self.jsonfile) and not self.params.new_imglist:
             with open(self.jsonfile, 'r') as rf:
                 self.imglist = json.load(rf)
@@ -64,7 +63,7 @@ class GraphRulesMultiClassLoader(Dataset):
         for idx in range(len(self.imglist)):
             print('*** file:', self.imglist[idx])
             # structs, chunks, img, rels = self.readlabel(idx)
-            structs, chunks, img, rescale_params = self.readlabel(idx)
+            structs, chunks, img, rescale_params, imgfn = self.readlabel(idx)
             print(structs, chunks)
             vi = self.check_chunks(structs, chunks)
             if vi == 1 and (img is not None):
@@ -151,7 +150,7 @@ class GraphRulesMultiClassLoader(Dataset):
             rescale_params = [h, w, h_n, w_n, offset]
         else:
             rescale_params = None
-        return structs, chunks, img, rescale_params
+        return structs, chunks, img, rescale_params, imgfn
 
     def __len__(self):
         return len(self.imglist)
@@ -236,7 +235,7 @@ class GraphRulesMultiClassLoader(Dataset):
 
     def __getitem__(self, idx):
         # structs, chunks, img, scaling_params = self.readlabel(idx)
-        structs, chunks, img, rescale_params = self.readlabel(idx)
+        structs, chunks, img, rescale_params, imgfn = self.readlabel(idx)
 
         if self.params.augment_chunk:
             self.augmentation_chk(chunks)
@@ -313,12 +312,11 @@ class GraphRulesMultiClassLoader(Dataset):
             col_edge_index = torch.from_numpy(np.asarray(col_edge_index)).t().contiguous().long()
 
             data = Data(x=x, pos=pos, img=img, edge_index=edge_index)
-            # data.row_edge_index = row_edge_index
-            # data.col_edge_index = col_edge_index
             data.gt = torch.LongTensor(gt)
             data.imgpos = torch.FloatTensor(imgpos)
             data.cell_wh = torch.FloatTensor(cell_wh)
             data.nodenum = torch.LongTensor([len(structs)])
+            # print(imgfn)
 
             return data
 
@@ -330,7 +328,7 @@ if __name__ == '__main__':
     params = scitsr_params()
     print(params)
     val_dataset = GraphRulesMultiClassLoader(params, partition='train')
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=True)
     
     for idx, data in enumerate(val_loader):
         print(data)
