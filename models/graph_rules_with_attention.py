@@ -35,9 +35,9 @@ class GraphRulesWithAttentionMultiClass(nn.Module):
         self.lin = nn.Sequential(
             nn.Linear(self.base_params.num_hidden_features * 2, self.base_params.num_hidden_features),
             nn.ReLU(inplace=True),
-            nn.Linear(self.base_params.num_hidden_features, self.base_params.num_hidden_features),
-            nn.ReLU(inplace=True),
             nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
+            # nn.ReLU(inplace=True),
+            # nn.Linear(self.base_params.num_hidden_features, self.base_params.num_classes)
         )
     
     def forward(self, data):
